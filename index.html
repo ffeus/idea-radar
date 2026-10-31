@@ -1,0 +1,1708 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>点子雷达</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a calm decision desk — input card on top, then the report as three stages (值不值得试 → 有什么能借用 → 交给 agent 开工); evidence and extras fold away; history rail at the side. */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --sunk:#EDF0F3; --ink:#121B24; --muted:#5B6773; --faint:#8994A0; --line:#E0E5EA; --line2:#C9D1D9;
+  --accent:#0E6A6E; --accent-ink:#FFFFFF; --accent-soft:rgba(14,106,110,.09);
+  --go:#1D8754; --go-soft:rgba(29,135,84,.10); --pivot:#B26F0B; --pivot-soft:rgba(178,111,11,.11); --stop:#C0402E; --stop-soft:rgba(192,64,46,.09);
+  --shadow:0 1px 2px rgba(18,27,36,.04),0 10px 30px -12px rgba(18,27,36,.12);
+  --f-display:"Noto Serif SC","Songti SC","STSong",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:14px; --r-sm:9px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1217; --surface:#141B22; --sunk:#1A232C; --ink:#E5EBF0; --muted:#9AA5B0; --faint:#6F7B87; --line:#24303A; --line2:#33414D;
+  --accent:#55B9BA; --accent-ink:#06191A; --accent-soft:rgba(85,185,186,.12);
+  --go:#56C28C; --go-soft:rgba(86,194,140,.13); --pivot:#E3A64A; --pivot-soft:rgba(227,166,74,.14); --stop:#EC6E5C; --stop-soft:rgba(236,110,92,.13);
+  --shadow:0 1px 0 rgba(255,255,255,.02); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1217; --surface:#141B22; --sunk:#1A232C; --ink:#E5EBF0; --muted:#9AA5B0; --faint:#6F7B87; --line:#24303A; --line2:#33414D;
+  --accent:#55B9BA; --accent-ink:#06191A; --accent-soft:rgba(85,185,186,.12);
+  --go:#56C28C; --go-soft:rgba(86,194,140,.13); --pivot:#E3A64A; --pivot-soft:rgba(227,166,74,.14); --stop:#EC6E5C; --stop-soft:rgba(236,110,92,.13);
+  --shadow:0 1px 0 rgba(255,255,255,.02); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 72px}
+a{color:var(--accent);text-underline-offset:3px}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 248px;gap:32px;align-items:start}
+@media (max-width:960px){.wrap{grid-template-columns:minmax(0,1fr)}}
+main{min-width:0;display:flex;flex-direction:column;gap:20px}
+
+/* masthead */
+.mast{display:flex;flex-direction:column;gap:14px;padding:4px 2px 6px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:11px;background:var(--ink);display:grid;place-items:center;flex:none}
+.mark svg{width:22px;height:22px}
+.mast h1{font-family:var(--f-display);font-weight:900;font-size:clamp(28px,4.4vw,38px);line-height:1.1;margin:0;letter-spacing:.02em}
+.mast .pitch{margin:0;color:var(--muted);max-width:40em;font-size:15px;text-wrap:balance}
+.path{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.path li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 5px}
+.path li b{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--sunk);color:var(--ink);font-family:var(--f-mono);font-size:11px}
+
+/* cards & basics */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.label{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase}
+.note{font-size:13px;color:var(--muted)}
+.notice{border:1px solid var(--pivot);background:var(--pivot-soft);padding:10px 14px;font-size:13.5px;border-radius:var(--r-sm)}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--surface);border-radius:999px;padding:10px 22px;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:transform .12s ease,opacity .12s}
+.btn:hover{opacity:.92}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line2);font-weight:500}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn.sm{padding:6px 14px;font-size:13px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--muted);cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.examples{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* input card */
+.slip{padding:22px;display:flex;flex-direction:column;gap:16px}
+textarea#idea{width:100%;min-height:104px;resize:vertical;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:14px 16px;line-height:1.7;font-size:16px}
+textarea#idea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+textarea#idea::placeholder{color:var(--faint)}
+.opts{display:flex;flex-wrap:wrap;gap:14px 26px}
+.opt{display:flex;flex-direction:column;gap:7px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--sunk);border-radius:var(--r-sm);padding:3px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:5px 12px;font-size:13px;cursor:pointer;border-radius:7px;color:var(--muted)}
+.seg label:hover{color:var(--ink)}
+.seg input:checked+label{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg input:focus-visible+label{outline:2px solid var(--accent)}
+.live{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px}
+.live input{margin-top:5px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.live label{display:flex;flex-direction:column;gap:2px;cursor:pointer;min-width:0}
+.live b{font-size:14px}
+.live span{font-size:12.5px;color:var(--muted)}
+.live.off{opacity:.6}
+details.more>summary{cursor:pointer;font-size:13px;color:var(--muted);list-style:none;display:inline-flex;align-items:center;gap:6px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"＋";font-family:var(--f-mono);font-size:12px}
+details.more[open]>summary::before{content:"－"}
+details.more>div{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+
+/* progress */
+.progress{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.steps{display:flex;flex-wrap:wrap;gap:8px 18px;list-style:none;margin:0;padding:0;font-size:13.5px}
+.steps li{display:flex;align-items:center;gap:7px;color:var(--faint)}
+.steps li::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid var(--line2)}
+.steps li.on{color:var(--ink)}
+.steps li.on::before{border-color:var(--accent);background:var(--accent);animation:pulse 1.1s ease-in-out infinite}
+.steps li.done{color:var(--ink)}
+.steps li.done::before{border-color:var(--go);background:var(--go)}
+@keyframes pulse{50%{opacity:.3}}
+.prog-row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.count{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.log{font-family:var(--f-mono);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto;overflow-wrap:anywhere}
+.log div::before{content:"› ";color:var(--accent)}
+
+/* report frame */
+.report{display:flex;flex-direction:column;gap:18px;overflow-wrap:anywhere}
+.rhead{padding:22px 24px;display:flex;flex-direction:column;gap:10px}
+.rtags{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.pill.ex{background:var(--accent-soft);color:var(--accent)}
+.pill.live{background:var(--go-soft);color:var(--go)}
+.rtitle{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.5;margin:0;text-wrap:balance}
+.rmeta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--faint)}
+.rmeta b{color:var(--muted);font-weight:500}
+.stepnav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:6px;padding:6px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;border:1px solid var(--line);overflow-x:auto}
+.stepnav a{flex:1;min-width:max-content;text-align:center;text-decoration:none;color:var(--muted);font-size:13.5px;padding:6px 14px;border-radius:999px;white-space:nowrap}
+.stepnav a b{font-family:var(--f-mono);font-weight:600;margin-right:6px;color:var(--faint)}
+.stepnav a:hover{background:var(--surface);color:var(--ink)}
+@media (max-width:520px){.stepnav{gap:2px;padding:4px}.stepnav a{padding:6px 9px;font-size:12.5px}.stepnav a b{margin-right:4px}}
+.stage{display:flex;flex-direction:column;gap:14px;scroll-margin-top:72px}
+.stage-head{display:flex;align-items:baseline;gap:12px;padding:6px 4px 0}
+.stage-head .no{font-family:var(--f-mono);font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:2px 9px;flex:none}
+.stage-head h2{font-family:var(--f-display);font-weight:900;font-size:22px;margin:0;line-height:1.3;text-wrap:balance}
+.stage-head p{margin:0;color:var(--muted);font-size:13.5px}
+.stage-title{display:flex;flex-direction:column;gap:2px;min-width:0}
+.blk{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.blk h3{font-size:16px;font-weight:700;margin:0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.blk h3 .sub{font-weight:400;font-size:13px;color:var(--muted)}
+
+/* decision card */
+.decision{padding:26px;display:flex;flex-direction:column;gap:22px}
+.dtop{display:grid;grid-template-columns:116px minmax(0,1fr);gap:24px;align-items:center}
+@media (max-width:560px){.dtop{grid-template-columns:minmax(0,1fr)}.dtop .seal{margin-inline:0}}
+.seal{width:108px;height:108px;border-radius:50%;border:3px solid var(--seal);color:var(--seal);display:flex;align-items:center;justify-content:center;
+  transform:rotate(-8deg);position:relative;font-family:var(--f-display);text-align:center;margin-inline:auto;animation:stamp .45s cubic-bezier(.2,.9,.3,1.3) both;--seal:var(--stop)}
+.seal::after{content:"";position:absolute;inset:5px;border:1px solid var(--seal);border-radius:50%;opacity:.7}
+.seal .v{font-weight:900;font-size:22px;letter-spacing:.1em;line-height:1.2}
+.seal.go{--seal:var(--go)} .seal.pivot{--seal:var(--pivot)} .seal.none{--seal:var(--faint)}
+@keyframes stamp{from{transform:rotate(-8deg) scale(1.25);opacity:.3}to{transform:rotate(-8deg) scale(1);opacity:1}}
+.dhead{display:flex;flex-direction:column;gap:10px;min-width:0}
+.headline{font-family:var(--f-display);font-weight:900;font-size:clamp(22px,3.2vw,28px);line-height:1.35;margin:0;text-wrap:balance}
+.headline.go{color:var(--go)} .headline.pivot{color:var(--pivot)} .headline.stop{color:var(--stop)}
+.reasons{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.reasons li{position:relative;padding-left:18px;font-size:15px}
+.reasons li::before{content:"";position:absolute;left:2px;top:.72em;width:6px;height:6px;border-radius:50%;background:var(--line2)}
+.dgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.dgrid{grid-template-columns:minmax(0,1fr)}}
+.dpanel{background:var(--sunk);border-radius:var(--r-sm);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.dpanel .k{font-size:12.5px;font-weight:700;color:var(--muted)}
+.dpanel .big{font-family:var(--f-display);font-weight:700;font-size:16px;line-height:1.55}
+.dpanel ul{margin:0;padding-left:1.1em;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.dpanel .comp-mini{display:flex;flex-direction:column;gap:1px}
+.dpanel .comp-mini b{font-size:14px}
+.dpanel .comp-mini span{font-size:12.5px;color:var(--muted)}
+.dpanel.next{background:var(--accent-soft)}
+.dpanel.next .big{color:var(--ink)}
+.qa{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:13.5px}
+.qa dt{color:var(--muted)}
+.qa dd{margin:0}
+.dfoot{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;border-top:1px solid var(--line);padding-top:16px}
+details.method{font-size:13.5px;color:var(--muted);flex:1 1 100%}
+details.method>summary{cursor:pointer;color:var(--accent);display:inline-flex}
+details.method .mbody{margin-top:12px;display:flex;flex-direction:column;gap:12px}
+details.method p{margin:0}
+details.method table{border-collapse:collapse;font-size:12.5px}
+details.method td{padding:3px 14px 3px 0;border-bottom:1px solid var(--line)}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 22px}
+.meter{display:flex;flex-direction:column;gap:4px}
+.meter .top{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink)}
+.meter .top span:last-child{font-family:var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bars{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.bars.ten{grid-template-columns:repeat(10,1fr);gap:2px}
+.bars i{height:6px;background:var(--line);border-radius:2px}
+.bars i.f{background:var(--ink)}
+.bars.hot i.f{background:var(--stop)}
+
+/* evidence accordions */
+.accs{display:flex;flex-direction:column;overflow:hidden}
+details.acc{border-top:1px solid var(--line)}
+details.acc:first-child{border-top:0}
+details.acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:15px 22px}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary:hover{background:var(--sunk)}
+details.acc>summary b{font-size:15px}
+details.acc>summary .meta{font-size:12.5px;color:var(--muted);margin-left:auto;text-align:right}
+details.acc>summary::after{content:"";width:8px;height:8px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);margin:-4px 2px 0 4px;transition:transform .15s;flex:none}
+details.acc[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
+details.acc>.abody{padding:4px 22px 22px;display:flex;flex-direction:column;gap:14px}
+
+/* competitors */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.comp{border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--surface)}
+.comp .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.comp h3,.comp h4{margin:0;font-size:15.5px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);max-width:100%}
+.tag.direct{background:var(--stop-soft);color:var(--stop)}
+.tag.indirect{background:var(--pivot-soft);color:var(--pivot)}
+.tag.alternative{background:var(--accent-soft);color:var(--accent)}
+.conf{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.04em;white-space:nowrap;padding:1px 7px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.conf.low{border-color:var(--pivot);color:var(--pivot)}
+.price{font-family:var(--f-mono);font-size:12.5px}
+.comp p{margin:0;font-size:14px}
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.pc{grid-template-columns:1fr}}
+.pc ul{margin:0;padding-left:1.1em;font-size:13px;color:var(--muted)}
+.pc .h{font-size:12px;font-weight:700;margin-bottom:2px}
+.pc .h.plus{color:var(--go)} .pc .h.minus{color:var(--stop)}
+.links{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;margin-top:auto;padding-top:2px}
+.src{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
+.src a{color:var(--go);overflow-wrap:anywhere}
+.src a::before{content:"✓ "}
+
+/* voices */
+.voices{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:20px}
+@media (max-width:720px){.voices{grid-template-columns:minmax(0,1fr)}}
+.vcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vcol .ttl{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--go)} .dot.r{background:var(--stop)}
+.vitem{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.vitem .t{font-weight:700;font-size:14.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vitem .d{font-size:13.5px;color:var(--muted)}
+.freq{font-size:11px;font-weight:500;padding:0 7px;border-radius:999px;background:var(--stop-soft);color:var(--stop)}
+.freq.m{background:var(--pivot-soft);color:var(--pivot)} .freq.l{background:var(--sunk);color:var(--muted)}
+.opp{font-size:13.5px;color:var(--go)}
+.opp::before{content:"→ 你的机会：";font-weight:700}
+
+/* lists */
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;padding:11px 0;border-top:1px solid var(--line);font-size:14.5px}
+.row:first-child{border-top:0;padding-top:0}
+.row .from{font-size:12.5px;color:var(--muted);text-align:right}
+@media (max-width:520px){.row{grid-template-columns:minmax(0,1fr)}.row .from{text-align:left}}
+.gaps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.gap{background:var(--sunk);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.gap b{font-size:14.5px}
+.gap span{font-size:13.5px;color:var(--muted)}
+.pivots{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.pv{border:1px dashed var(--line2);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.pv b{font-size:14.5px}
+.pv span{font-size:13.5px;color:var(--muted)}
+.pv .why{font-size:13px}
+.mvp{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.mvp ul{margin:6px 0 0;padding-left:1.15em;font-size:14.5px;display:flex;flex-direction:column;gap:3px}
+.mvp .h{font-size:13px;font-weight:700}
+.mvp .h.yes{color:var(--go)} .mvp .h.no{color:var(--muted)}
+.est{display:flex;gap:8px 24px;flex-wrap:wrap;background:var(--sunk);border-radius:var(--r-sm);padding:11px 14px;font-size:13.5px}
+.est span{color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.two .item{padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.two .item b{display:block}
+.two .item span{color:var(--muted);font-size:13.5px}
+.users{display:flex;flex-direction:column}
+.user{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:4px 16px;padding:10px 0;border-top:1px solid var(--line);font-size:14px;align-items:baseline}
+.user:first-child{border-top:0;padding-top:0}
+.user .ch{font-weight:700}
+.user .how{color:var(--muted);font-size:13.5px}
+.user a{font-size:12.5px;white-space:nowrap}
+@media (max-width:560px){.user{grid-template-columns:minmax(0,1fr)}}
+.mkt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.mkt{grid-template-columns:minmax(0,1fr)}}
+.mcell{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.mcell .k{font-family:var(--f-mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.mcell .val{font-size:14px;font-weight:500}
+.trend{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.arrow{font-family:var(--f-mono);font-weight:600;font-size:12.5px;padding:3px 10px;border-radius:999px;background:var(--sunk);white-space:nowrap}
+.arrow.up{background:var(--go-soft);color:var(--go)} .arrow.down{background:var(--stop-soft);color:var(--stop)}
+.trend ul{margin:4px 0 0;padding-left:1.1em;font-size:13.5px;color:var(--muted)}
+.kw{display:flex;flex-wrap:wrap;gap:6px}
+.kw button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;font-size:13px;cursor:pointer}
+.kw button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.plat{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+.plat a{display:flex;flex-direction:column;gap:1px;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 11px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:500}
+.plat a span{font-size:11.5px;color:var(--muted);font-weight:400}
+.plat a:hover{border-color:var(--accent);color:var(--accent)}
+ol.vsteps{margin:0;padding-left:1.3em;font-size:14.5px;display:flex;flex-direction:column;gap:5px}
+.sources{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+
+/* GitHub */
+.ghverdict{display:flex;gap:12px;align-items:flex-start;background:var(--sunk);border-radius:var(--r-sm);padding:12px 14px}
+.ghverdict .vd{font-family:var(--f-display);font-weight:900;font-size:16px;white-space:nowrap;color:var(--go)}
+.ghverdict .vd.mid{color:var(--pivot)} .ghverdict .vd.none{color:var(--stop)}
+.ghverdict p{margin:0;font-size:14px}
+@media (max-width:520px){.ghverdict{flex-direction:column;gap:4px}}
+.repo h3 a,.repo h4 a{color:var(--ink);text-decoration:none;font-family:var(--f-mono);font-size:14px}
+.repo h3 a:hover,.repo h4 a:hover{color:var(--accent);text-decoration:underline}
+.fit{font-size:11.5px;padding:1px 8px;border-radius:999px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
+.fit.hi{background:var(--go-soft);color:var(--go)} .fit.mid{background:var(--pivot-soft);color:var(--pivot)}
+.tag.lic-ok{background:var(--go-soft);color:var(--go)} .tag.lic-warn{background:var(--pivot-soft);color:var(--pivot)}
+.repo .reuse,.repo .watch{font-size:13.5px}
+.repo .reuse b{color:var(--go)} .repo .watch b{color:var(--pivot)} .repo .watch{color:var(--muted)}
+.repo .links{align-items:center;justify-content:space-between}
+.vok{color:var(--go);font-size:12px} .vwarn{color:var(--pivot);font-size:12.5px}
+.ghempty{display:flex;flex-direction:column;gap:12px;align-items:flex-start;background:var(--sunk);border-radius:var(--r-sm);padding:16px}
+
+/* hand-off */
+.ccbox{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.cc-cmd{flex:1;min-width:0;margin:0;background:#0F1720;color:#DDE6EE;font-family:var(--f-mono);font-size:13px;line-height:1.75;padding:12px 16px;border-radius:var(--r-sm);overflow-x:auto;white-space:pre}
+.brief{margin:0;max-height:380px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--f-mono);font-size:12.5px;line-height:1.75;background:var(--sunk);padding:14px 16px;border-radius:var(--r-sm)}
+.more-agents{border:0;background:none;color:var(--accent);font-size:13px;cursor:pointer;padding:5px 8px}
+
+/* tools, chat */
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.tool{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);padding:10px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.tool b{font-size:14px}
+.tool span{font-size:12px;color:var(--muted)}
+.tool:hover{border-color:var(--ink)}
+.tool[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tool .done{color:var(--go)}
+.tout{border:1px solid var(--line);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:10px}
+.tout .bar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.chat{display:flex;flex-direction:column;gap:12px}
+.msgs{display:flex;flex-direction:column;gap:10px}
+.msg{padding:10px 14px;border-radius:12px;font-size:14.5px;max-width:100%;overflow-wrap:anywhere}
+.msg.u{background:var(--ink);color:var(--surface);align-self:flex-end;max-width:85%}
+.msg.a,.mdout{background:var(--sunk);padding:10px 14px;border-radius:12px;font-size:14.5px;overflow-wrap:anywhere}
+.msg.a p,.mdout p{margin:0 0 .5em}.msg.a p:last-child,.mdout p:last-child{margin:0}
+.msg.a ul,.msg.a ol,.mdout ul,.mdout ol{margin:.2em 0 .6em;padding-left:1.3em}
+.msg.a code,.mdout code{font-family:var(--f-mono);font-size:.9em;background:var(--surface);padding:0 4px;border-radius:4px}
+.msg.a pre,.mdout pre{background:var(--surface);padding:10px;border-radius:8px;overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;white-space:pre-wrap}
+.ask{display:flex;gap:8px}
+.ask input{flex:1;min-width:0;border:1px solid var(--line);border-radius:999px;background:var(--bg);padding:8px 16px}
+.foot-actions{display:flex;flex-wrap:wrap;gap:8px;padding:16px 20px;align-items:center}
+
+/* history */
+aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:960px){aside{position:static}}
+.hist{display:flex;flex-direction:column;gap:6px}
+.hist button{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:var(--r-sm);border:1px solid transparent}
+.hist button:hover{background:var(--surface);border-color:var(--line)}
+.hist button[aria-current="true"]{background:var(--surface);border-color:var(--line2);box-shadow:var(--shadow)}
+.hist button:focus-visible{outline:2px solid var(--accent)}
+.ht{overflow-wrap:anywhere;font-size:13.5px;font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hm{font-size:11.5px;color:var(--faint);display:flex;gap:8px;flex-wrap:wrap}
+.hm .vd{color:var(--stop);font-weight:500} .hm .vd.go{color:var(--go)} .hm .vd.pivot{color:var(--pivot)} .hm .vd.none{color:var(--faint)}
+.disclaimer{font-size:12px;color:var(--faint);line-height:1.65;margin:4px 0 0}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+<main>
+  <header class="mast">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="1.5"/><circle cx="12" cy="12" r="4.5" stroke="#FFFFFF" stroke-opacity=".6" stroke-width="1.5"/><path d="M12 12 L19 6.5" stroke="#5FC4C4" stroke-width="2" stroke-linecap="round"/><circle cx="16.4" cy="8.6" r="1.6" fill="#5FC4C4"/></svg></span>
+      <h1>点子雷达</h1>
+    </div>
+    <p class="pitch">帮独立开发者在动手前查清竞品，再找到可复用的开源项目，最后生成一份可执行的开发简报。</p>
+    <ol class="path"><li><b>1</b>值不值得试</li><li><b>2</b>有什么能借用</li><li><b>3</b>交给 agent 开工</li></ol>
+  </header>
+
+  <form class="slip card" id="form" autocomplete="off">
+    <textarea id="idea" maxlength="1200" aria-label="你的点子" placeholder="一两句话说清楚：给谁用、解决什么问题、大概怎么做。例如：一个帮考研党记录每天学习时长、自动生成周报发朋友圈的小程序"></textarea>
+    <div class="examples" id="examples"><span class="note">试试：</span></div>
+    <div class="opts">
+      <div class="opt"><span class="label">做成什么</span>
+        <div class="seg" role="radiogroup" aria-label="做成什么" id="seg-platform"></div></div>
+      <div class="opt"><span class="label">目标市场</span>
+        <div class="seg" role="radiogroup" aria-label="目标市场" id="seg-market"></div></div>
+    </div>
+    <div class="live" id="live-box">
+      <input type="checkbox" id="live">
+      <label for="live"><b>联网检索，结论附来源</b><span id="live-note">正在检查可用的搜索方式…</span></label>
+    </div>
+    <details class="more">
+      <summary>更多选项</summary>
+      <div>
+        <div class="opt"><span class="label">分析深度</span>
+          <div class="seg" role="radiogroup" aria-label="分析深度" id="seg-depth"></div></div>
+        <div class="live" id="gh-box">
+          <input type="checkbox" id="gh-auto">
+          <label for="gh-auto"><b>出结论后自动去 GitHub 找开源项目</b><span>默认不开：多数点子看完结论就能筛掉。开了以后每次会多花 30–90 秒和一次额度；不开也可以在报告第 2 步按需点开。</span></label>
+        </div>
+      </div>
+    </details>
+    <div class="actions">
+      <button class="btn accent" type="submit" id="go">开始查新</button>
+      <span class="note" id="hint">使用你自己的 Claude 额度，首次会请你授权。</span>
+    </div>
+    <div class="notice" id="unavail" hidden>当前环境无法调用 Claude，下方只展示示例报告。请在 claude.ai 中打开此页面并允许它使用 Claude。</div>
+  </form>
+
+  <section class="progress card" id="progress" hidden aria-live="polite">
+    <div class="prog-row">
+      <strong id="prog-title">正在查新…</strong>
+      <button class="btn ghost sm" type="button" id="stop">停止</button>
+    </div>
+    <ul class="steps" id="steps"></ul>
+    <div class="log" id="log" hidden></div>
+    <div class="count" id="count">思考中，通常需要 20–90 秒</div>
+  </section>
+
+  <div class="notice" id="err" hidden></div>
+
+  <article class="report" id="report"></article>
+</main>
+
+<aside>
+  <div class="label">查新记录</div>
+  <div class="hist" id="hist"></div>
+  <p class="disclaimer">记录只保存在这台设备的浏览器里。不开联网时，分析只依据 Claude 已有的知识，可能漏掉新产品或说错；开了联网，带 ✓ 的条目是实际查到的出处。</p>
+</aside>
+</div>
+
+
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const arr = x => Array.isArray(x) ? x : [];
+const clamp = (n,a,b) => { n = Number(n); return Number.isFinite(n) ? Math.min(b, Math.max(a, Math.round(n))) : a; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const host = u => { try { return new URL(u).hostname.replace(/^www\./,""); } catch(e){ return u; } };
+const okUrl = u => /^https?:\/\//i.test(String(u||""));
+
+/* ---------- options ---------- */
+const OPTS = {
+  platform: ["不限","网站","小程序","App","浏览器插件"],
+  market: ["国内","海外","全球"],
+  depth: [["quick","快速"],["default","标准"],["complex","深度"]]
+};
+function seg(id, name, items, def){
+  const box = $(id);
+  items.forEach((it,i) => {
+    const [v,label] = Array.isArray(it) ? it : [it,it];
+    const iid = `${name}-${i}`;
+    box.insertAdjacentHTML("beforeend", `<input type="radio" name="${name}" id="${iid}" value="${esc(v)}" ${v===def?"checked":""}><label for="${iid}">${esc(label)}</label>`);
+  });
+}
+seg("#seg-platform","platform",OPTS.platform,"不限");
+seg("#seg-market","market",OPTS.market,"国内");
+seg("#seg-depth","depth",OPTS.depth,"default");
+const val = n => (document.querySelector(`input[name="${n}"]:checked`)||{}).value;
+const setVal = (n,v) => { const el = document.querySelector(`input[name="${n}"][value="${CSS.escape(String(v))}"]`); if (el) el.checked = true; };
+
+const EXAMPLES = [
+  "番茄钟 + 白噪音 + 自习室排行的学习小程序",
+  "拍一下冰箱，AI 告诉我今晚能做什么菜",
+  "给宠物记疫苗、驱虫、体重的提醒 App",
+  "把 B 站长视频自动整理成图文笔记的浏览器插件"
+];
+EXAMPLES.forEach(t => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip"; b.textContent = t;
+  b.onclick = () => { $("#idea").value = t; $("#idea").focus(); };
+  $("#examples").append(b);
+});
+
+/* ---------- storage ---------- */
+const KEY = "idea-radar-history-v1";
+function loadHist(){ try { return arr(JSON.parse(localStorage.getItem(KEY))); } catch(e){ return []; } }
+function saveHist(h){ try { localStorage.setItem(KEY, JSON.stringify(h.slice(0,30))); } catch(e){} }
+try { const d = localStorage.getItem(KEY+"-draft"); if (d) $("#idea").value = d; } catch(e){}
+$("#idea").addEventListener("input", e => { try { localStorage.setItem(KEY+"-draft", e.target.value); } catch(_){} });
+
+/* ---------- scoring (fixed, published rubric) ---------- */
+const DIMS = [
+  ["demand","需求真实性",25,"有多少人真的为这个问题痛、在主动找办法"],
+  ["market","市场空间",10,"能覆盖的人群和付费规模"],
+  ["competition","竞争空间",15,"10 = 几乎没人做，1 = 巨头和大量同类"],
+  ["differentiation","差异化空间",20,"能否做出用户一眼看得出的不同"],
+  ["feasibility","个人可执行性",20,"一个人用 AI 写得出来、也找得到第一批用户"],
+  ["monetization","变现路径",10,"有没有清晰、用户愿意付的收费方式"]
+];
+const isObj = o => !!o && typeof o === "object" && !Array.isArray(o);
+const numOk = v => v !== null && v !== "" && v !== undefined && typeof v !== "boolean" && Number.isFinite(Number(v));
+/* A score is shown only when all six dimensions are present (or, for reports saved before the rubric, a full legacy verdict). */
+function scoreInfo(r){
+  const s = r?.scores;
+  if (isObj(s) && DIMS.every(([k]) => numOk(s[k]))){
+    const score = Math.round(DIMS.reduce((t,[k,,w]) => t + clamp(s[k],0,10)*w, 0) / 10);
+    return {ok:true, score, dec: score >= 70 ? "go" : score >= 45 ? "pivot" : "stop"};
+  }
+  const v = r?.verdict;
+  if (s === undefined && isObj(v) && numOk(v.score) && ["go","pivot","stop"].includes(v.decision)) return {ok:true, score: clamp(v.score,0,100), dec: v.decision};
+  return {ok:false, score:null, dec:null};
+}
+function scoreOf(r){ return scoreInfo(r).score; }
+function decisionOf(r){ return scoreInfo(r).dec; }
+const verdictText = r => { const i = scoreInfo(r); if (!i.ok) return "评分数据不完整，没有给出结论"; const hl = typeof r?.verdict?.headline === "string" && r.verdict.headline.trim() ? r.verdict.headline : HEADLINE[i.dec]; return `${hl}（评分 ${i.score}/100）`; };
+/* Coerce a model reply (or an old saved report) into the shapes the page renders, dropping anything malformed. */
+const strArr = a => arr(a).filter(x => typeof x === "string" || typeof x === "number").map(String);
+function normalizeReport(d){
+  if (!isObj(d)) return null;
+  const r = {...d};
+  ["competitors","praise","complaints","borrow","gaps","pivots","firstUsers","risks","monetization","blindSpots"].forEach(k => { r[k] = arr(d[k]).filter(isObj); });
+  r.competitors = r.competitors.filter(c => typeof c.name === "string" && c.name.trim())
+    .map(c => ({...c, strengths: strArr(c.strengths), weaknesses: strArr(c.weaknesses), sources: strArr(c.sources)}));
+  ["praise","complaints"].forEach(k => { r[k] = r[k].map(x => ({...x, sources: strArr(x.sources)})); });
+  ["mvp","market","trend","keywords","saturation","scores","verdict","validation"].forEach(k => { r[k] = isObj(d[k]) ? {...d[k]} : undefined; });
+  if (r.mvp){ r.mvp.core = strArr(r.mvp.core); r.mvp.skip = strArr(r.mvp.skip); }
+  if (r.market) r.market.assumptions = strArr(r.market.assumptions);
+  if (r.trend) r.trend.signals = strArr(r.trend.signals);
+  if (r.keywords){ r.keywords.zh = strArr(r.keywords.zh); r.keywords.en = strArr(r.keywords.en); }
+  r.validationSteps = strArr(d.validationSteps);
+  if (r.verdict) r.verdict.reasons = strArr(r.verdict.reasons);
+  ["summary","keyAssumption"].forEach(k => { if (d[k] != null && typeof d[k] !== "string") r[k] = String(d[k]); });
+  return r;
+}
+function normalizeEntry(h){
+  if (!isObj(h) || typeof h.id !== "string" || typeof h.idea !== "string") return null;
+  const report = normalizeReport(h.report); if (!report) return null;
+  const e = {...h, report, chat: arr(h.chat).filter(t => isObj(t) && (t.role==="user"||t.role==="assistant") && typeof t.content==="string"), tools: isObj(h.tools) ? h.tools : {}, sources: arr(h.sources).filter(x => Array.isArray(x) && typeof x[1] === "string")};
+  if (h.github !== undefined && !isObj(h.github)) delete e.github;
+  if (e.github){ e.github = {...e.github, repos: arr(e.github.repos).filter(x => isObj(x) && typeof x.name === "string" && typeof x.url === "string"), plans: isObj(e.github.plans) ? e.github.plans : {}}; }
+  return e;
+}
+
+/* ---------- example report (researched with live search, 2026-10-22) ---------- */
+const EXAMPLE = {
+  id: "example", example: true, live: true,
+  idea: "当我想到一个点子时，输入进去，自动检索市面上有没有竞品、有哪些可以借鉴、网友评价和吐槽是什么，帮我判断值不值得用 vibecoding 去做。",
+  platform: "网站", market: "全球", depth: "default", createdAt: "2026-10-22T08:00:00Z",
+  sources: [
+    ["Best Business Idea Validators: 7 Tested（Preuve AI 博客，作者是竞品方，需自行甄别）","https://preuve.ai/blog/best-business-idea-validators-2026"],
+    ["Preuve AI vs DimeADozen","https://preuve.ai/blog/preuveai-vs-dimeadozen"],
+    ["IdeaScan · GitHub","https://github.com/tangchunwu/IdeaScan"],
+    ["IdeaCheck 官网","https://www.ideacheck.cn"],
+    ["Yibud 创业点子验证","https://www.yibud.com/zh"],
+    ["Bing 搜索：点子验证 工具","https://www.bing.com/search?q=%E7%82%B9%E5%AD%90%E9%AA%8C%E8%AF%81+%E5%B7%A5%E5%85%B7"]
+  ],
+  report: {
+    summary: "面向独立开发者和 vibecoder 的「动手前查重」工具：输入点子，输出竞品、口碑、吐槽和值不值得做的结论。",
+    competitors: [
+      {name:"Preuve AI",type:"direct",platform:"网站",region:"海外",pricing:"免费初筛；完整报告 $59/次",oneLiner:"多个 AI agent 查 60+ 实时数据源，给 0–100 可行性分，每条结论附来源。",strengths:["结论带来源，可核查","给出转向方向和盲点提醒"],weaknesses:["按次付费，多试几个点子成本高","以英文市场为主"],confidence:"high",sources:["https://preuve.ai/blog/best-business-idea-validators-2026"]},
+      {name:"Yibud",type:"direct",platform:"网站",region:"国内",pricing:"目前免费",oneLiner:"一句话点子 + 5 个追问，规则引擎按 7 个维度打分，给 MVP 蓝图和 7 天验证计划。",strengths:["同样输入永远同样分数","给出最关键的假设和获客计划"],weaknesses:["不查真实竞品和口碑","结论取决于你填得多清楚"],confidence:"high",sources:["https://www.yibud.com/zh"]},
+      {name:"IdeaScan",type:"direct",platform:"网站（GitHub 项目）",region:"国内",pricing:"未标价",oneLiner:"抓小红书、抖音真实痛点和全网竞品，3 分钟出验证报告，还能生成带候补名单的落地页。",strengths:["真的去小红书、抖音找痛点","自动生成 MVP 落地页"],weaknesses:["需扫码登录爬取，稳定性和合规有风险","项目体量小，没有开源许可"],confidence:"medium",sources:["https://github.com/tangchunwu/IdeaScan"]},
+      {name:"IdeaCheck",type:"direct",platform:"网站",region:"国内",pricing:"未公开；行动指南需解锁",oneLiner:"把点子变成 6 阶段报告（验证、市场、商业计划、品牌、视觉、投放），附 5 周行动指南。",strengths:["可分享的结论卡片","报告后有按周的行动计划"],weaknesses:["示例只能看前一两段","偏商业计划，不专门查竞品口碑"],confidence:"medium",sources:["https://www.ideacheck.cn"]},
+      {name:"DimeADozen",type:"direct",platform:"网站",region:"海外",pricing:"免费打分；完整报告 $129",oneLiner:"生成上百页带来源的市场、竞品和转型建议报告。",strengths:["报告完整，适合给合伙人看","有市场规模估算"],weaknesses:["反复验证很贵","不直接给做/不做结论"],confidence:"high",sources:["https://preuve.ai/blog/preuveai-vs-dimeadozen"]},
+      {name:"ValidatorAI",type:"direct",platform:"网站",region:"海外",pricing:"免费",oneLiner:"0–100 点子评分，另有市场规模、落地页文案、转向助手等 20 多个小工具。",strengths:["免费，门槛低","顺手生成落地页文案和名字"],weaknesses:["不实时检索，可能编出不存在的竞品","偏乐观"],confidence:"high",sources:["https://preuve.ai/blog/best-business-idea-validators-2026"]},
+      {name:"WorthBuild / Trend Seeker",type:"indirect",platform:"网站",region:"海外",pricing:"$5/份；$9.99/月",oneLiner:"前者从 Reddit、HN、X 找出讨论这个问题的人，后者看需求在升温还是降温。",strengths:["给潜在用户名单","能看需求趋势"],weaknesses:["只覆盖一个环节","偏英文社区"],confidence:"medium",sources:["https://preuve.ai/blog/best-business-idea-validators-2026"]},
+      {name:"手动搜一圈",type:"alternative",platform:"不限",region:"全球",pricing:"免费",oneLiner:"现在大多数人的做法：自己去 Product Hunt、App Store、小红书挨个搜。",strengths:["真实、免费"],weaknesses:["耗时半天，信息零散","容易漏掉换了说法的竞品"],confidence:"high",sources:[]}
+    ],
+    praise: [
+      {theme:"几分钟拿到结构化结论",detail:"省去自己翻 Product Hunt 和应用商店的时间。"},
+      {theme:"免费评分适合先筛一遍",detail:"不用花钱就能把明显不行的点子先淘汰。"}
+    ],
+    complaints: [
+      {theme:"AI 编造竞品",detail:"不联网的工具会列出不存在或不相关的竞品。",frequency:"高频",opportunity:"联网检索，每条结论附出处。",sources:["https://preuve.ai/blog/best-business-idea-validators-2026"]},
+      {theme:"太会鼓励人",detail:"评分普遍偏乐观，很少直接说别做。",frequency:"高频",opportunity:"公开评分规则，分数低就直接说停。",sources:["https://preuve.ai/blog/best-business-idea-validators-2026"]},
+      {theme:"报告又长又空",detail:"套了一堆框架，看完还是不知道下一步干嘛。",frequency:"中频",opportunity:"一屏结论 + MVP 清单 + 第一批用户在哪。",sources:["https://preuve.ai/blog/preuveai-vs-dimeadozen"]},
+      {theme:"按次收费太贵",detail:"一份 $59–$129，验证多个点子很肉疼。",frequency:"中频",opportunity:"用用户自己的额度，不另收费。",sources:["https://preuve.ai/blog/best-business-idea-validators-2026"]}
+    ],
+    borrow: [
+      {idea:"联网检索，每条结论附来源",from:"Preuve AI"},
+      {idea:"公开评分规则，同样输入得同样分数",from:"Yibud、IdeaProof"},
+      {idea:"去小红书、抖音找真实痛点",from:"IdeaScan"},
+      {idea:"找出正在讨论这个问题的人，当第一批用户",from:"WorthBuild"},
+      {idea:"展示需求热度在升还是降",from:"Trend Seeker"},
+      {idea:"一键生成名字、落地页文案",from:"ValidatorAI、IdeaScan"}
+    ],
+    gaps: [
+      {title:"专为 vibecoder",detail:"结论换算成「AI 写要几个晚上」，并直接产出可交给编程 agent 的需求文档。"},
+      {title:"查口碑而不只是查竞品",detail:"同类大多只列竞品，很少把用户吐槽整理成你的机会。"},
+      {title:"不另收费",detail:"用用户自己的 Claude 额度，可以随便多试几个点子。"},
+      {title:"点子库 + 竞品盯梢",detail:"保存点子，竞品有新动态时提醒你。"}
+    ],
+    pivots: [
+      {title:"做成 AI 编程工具里的插件",detail:"在 Cursor、Claude Code 里写需求时自动查重。",why:"出现在用户正要开写的那一刻，留存问题小很多。"},
+      {title:"只做小程序赛道查新",detail:"专查微信、支付宝小程序里的同类。",why:"英文工具完全查不到，国内同类也很少覆盖。"},
+      {title:"竞品盯梢订阅",detail:"已上线的产品，持续监控同类新品和差评。",why:"从一次性工具变成每周会打开的服务，好收费。"}
+    ],
+    market: {tam:"全球想做副业产品的人，数百万量级（粗估）",sam:"中文圈独立开发者和 vibecoder，约数十万（粗估）",som:"第一年触达数千活跃用户较现实",assumptions:["AI 编程让会做产品的人数明显增多","只有一小部分人会在动手前主动查重"],note:"均为粗略估算，不是统计数据。"},
+    trend: {direction:"上升",reason:"AI 编程降低了做产品的门槛，2026 年同类验证工具密集出现。",signals:["中英文同类工具今年集中上线","搜索结果里大量是 2026 年的新页面"]},
+    firstUsers: [
+      {channel:"V2EX",where:"「分享创造」节点",how:"发帖展示工具，请大家拿自己的点子来测"},
+      {channel:"即刻",where:"独立开发、vibe coding 相关圈子",how:"晒真实查新报告截图"},
+      {channel:"小红书",where:"搜「独立开发」「vibecoding」「副业 App」",how:"发「我差点白做了一个 App」的故事笔记"},
+      {channel:"Reddit",where:"r/SideProject、r/indiehackers",how:"英文版上线时去发帖"},
+      {channel:"Product Hunt",where:"Developer Tools 分类",how:"有英文版后发布"}
+    ],
+    mvp: {
+      core:["输入点子，输出竞品、吐槽、结论","联网检索并附来源","历史记录和追问"],
+      skip:["账号体系与付费","自建爬虫","团队协作"],
+      buildEstimate:"2–3 个晚上（单页 + 大模型调用 + 搜索）",
+      stack:"单页网页 + 大模型 API + 搜索 API"
+    },
+    risks: [
+      {title:"幻觉",detail:"不联网的大模型会编竞品，必须给核实入口或接搜索。"},
+      {title:"数据获取受限",detail:"小红书、抖音等平台反爬严格，合规拿数据成本高。"},
+      {title:"同质化",detail:"中英文都已有多款同类，只靠功能难拉开差距。"}
+    ],
+    monetization: [
+      {model:"免费额度 + 订阅",note:"同类订阅多在 $10/月上下。"},
+      {model:"按次深度报告",note:"同类按次 $5–$129。"}
+    ],
+    keywords: {zh:["点子验证 工具","AI 竞品分析","需求验证 独立开发"],en:["startup idea validator","AI competitor analysis","validate app idea"]},
+    validationSteps: [
+      "在小红书、即刻、V2EX 搜「点子验证」，看有没有人在问、在吐槽",
+      "做一个落地页，写清和 Yibud、IdeaScan 的区别，挂到独立开发社群收邮箱",
+      "找 5 个正在 vibecoding 的朋友拿真实点子试用，看会不会第二次打开"
+    ],
+    keyAssumption: "用户愿意在动手前多花几分钟查重，而不是直接让 AI 开写。",
+    blindSpots: [
+      {title:"天然低频",detail:"只在冒出新点子时才用，留存会很低。"},
+      {title:"和直接问 AI 差别不大",detail:"不联网时，结论和用户自己问 ChatGPT 很接近，价值必须来自实时数据。"},
+      {title:"国内已有同类",detail:"Yibud、IdeaScan、IdeaCheck 都在做中文点子验证。"}
+    ],
+    saturation: {level:4,label:"较拥挤",note:"中英文都有多款直接竞品，但各自只做好一部分。"},
+    scores: {demand:7,market:5,competition:3,differentiation:6,feasibility:8,monetization:4},
+    validation: {whoHasPain:"用 AI 写代码、点子多但时间少的独立开发者",howTheySolveNow:"自己去 Product Hunt、App Store、小红书挨个搜，或者干脆直接开写",whereToFind10:"V2EX「分享创造」、即刻独立开发圈子、小红书搜「vibecoding」",firstStep:"找 5 个正在 vibecoding 的人，让他们拿手上的真实点子试一次，看有没有人主动用第二次"},
+    verdict: {headline:"值得小范围验证，暂不建议直接开发",reasons:["需求真实，也在升温：2026 年同类工具密集上线","中英文都已有多款直接竞品，照搬只能拼价格","「专为 vibecoder」和中文平台覆盖还没人做好，可能是切入点"],reason:"需求真实也在升温，但中英文都已有多款同类，照搬只能拼价格。从「专为 vibecoder」或「只查小程序赛道」切入再做。"}
+  },
+  chat: [], tools: {},
+  github: {
+    verdict: "有可以直接 fork 的", live: true, at: "2026-10-23T08:00:00Z", plans: {},
+    advice: "idea-sieve 的结构最接近（多阶段验证、实时进度、Tavily 查竞品），可以作为起点；评分提示词借 VibeCom 的 SKILL.md。这些项目都是英文、不查中文平台，这部分要自己补。",
+    repos: [
+      {name:"kzeitar/idea-sieve",url:"https://github.com/kzeitar/idea-sieve",description:"AI 点子验证器：多阶段研究任务、实时进度推送、用 Tavily 查竞品、多维度打分。",stars:13,license:"MIT",lastActive:"2025-12 创建，39 次提交",stack:"TypeScript / React + Hono + AI SDK",fit:"高",reuse:"fork 后把界面换成中文，搜索源加上小红书、知乎等中文平台。",watchOut:"需要自备 OpenAI 和 Tavily 的 key；用 Bun + Docker 部署。",verified:true},
+      {name:"VibeCom-AI/startup-idea-validator",url:"https://github.com/VibeCom-AI/startup-idea-validator",description:"一个 Claude Code / Cursor 用的 skill，按 7 个维度给点子打分。",stars:3,license:"MIT",lastActive:"2026-03 创建",stack:"SKILL.md 提示词",fit:"中",reuse:"直接借它的 7 维度评分提示词和输出格式。",watchOut:"只有提示词，没有界面和检索。",verified:true},
+      {name:"kle-08/launchlens",url:"https://github.com/kle-08/launchlens",description:"命令行工具，30 秒给出 YES/NO 结论、竞品和转向建议，支持 JSON 输出。",stars:6,license:"MIT",lastActive:"2025-09 创建",stack:"Node.js CLI",fit:"中",reuse:"参考它的结论格式和「不行就给转向建议」的逻辑。",watchOut:"没配 Perplexity key 时竞品是占位数据。",verified:true},
+      {name:"Vimalk0703/startup-validator-skill",url:"https://github.com/Vimalk0703/startup-validator-skill",description:"Claude skill：联网研究 + 用户访谈脚本 + GO/PIVOT/KILL 结论。",stars:null,license:"MIT",lastActive:"2026-02 创建",stack:"Claude Skill",fit:"中",reuse:"借鉴它的访谈脚本和评分表，补到工具箱里。",watchOut:"产出是 Office 文件，只有 1 次提交。",verified:true},
+      {name:"Nikki03-tech/Ai-startup-idea-validator",url:"https://github.com/Nikki03-tech/Ai-startup-idea-validator",description:"多 agent 验证平台：市场、竞品、风险、MVP、上市策略。",stars:null,license:"MIT",lastActive:"2026-07 创建，214 次提交",stack:"Python / Streamlit + Gemini",fit:"中",reuse:"参考它的多 agent 流水线拆分和测试做法。",watchOut:"仍在开发中，Python 栈偏重。",verified:true},
+      {name:"Readyaddy/idea-validator",url:"https://github.com/Readyaddy/idea-validator",description:"15 个 AI 角色轮番评审点子，最后给出 GO / NO-GO / PIVOT。",stars:null,license:"未知",lastActive:"2026-03 创建",stack:"Python + React + LangGraph",fit:"低",reuse:"只参考 15 个角色的提示词设计。",watchOut:"没看到开源许可证，不能直接拿来改。",verified:true}
+    ],
+    searchTips: ["startup idea validator","idea validation AI","competitor analysis agent","market research agent"],
+    sources: [["GitHub 搜索结果（Parallel Search）","https://github.com/kzeitar/idea-sieve"]]
+  }
+};
+
+/* ---------- state ---------- */
+let hist = loadHist();
+let current = hist[0] || EXAMPLE;
+let sample = null, downloads = null, mcp = null;
+let ctl = null;
+let activeKw = 0;
+let activeTool = null;
+let ghBusyId = null, ghCtl = null, ghNum = "", activePlan = null, planBusy = false;
+let seenRepos = new Set(), logTarget = "#log";
+let ccNum = "", ccBase = null, ccFormat = "prompt";
+
+/* ---------- history ---------- */
+const VD = {go:"值得做", pivot:"先验证", stop:"先别做"};
+const HEADLINE = {go:"值得做，可以开始做第一版", pivot:"值得小范围验证，暂不建议直接开发", stop:"不建议投入，先换个方向", none:"评分数据不完整，暂时给不出结论"};
+let openAcc = new Set();
+function renderHist(){
+  const items = [...hist, EXAMPLE];
+  $("#hist").innerHTML = items.map(h => {
+    const si = scoreInfo(h.report), d = si.dec;
+    const date = h.example ? "示例" : new Date(h.createdAt).toLocaleDateString("zh-CN",{month:"numeric",day:"numeric"});
+    return `<button type="button" data-id="${esc(h.id)}" aria-current="${h.id===current.id}">
+      <span class="ht">${esc(h.idea)}</span>
+      <span class="hm"><span>${esc(date)}</span>${si.ok ? `<span class="vd ${esc(d)}">${esc(VD[d])}</span>` : `<span class="vd none">待定</span>`}${h.live?"<span>联网</span>":""}</span>
+    </button>`;
+  }).join("");
+  $("#hist").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const h = items.find(x => x.id === b.dataset.id); if (!h) return;
+    current = h; activeKw = 0; activeTool = null; activePlan = null; ccBase = null; renderReport(); renderHist();
+    $("#report").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+  });
+}
+
+/* ---------- report ---------- */
+function bars(n, max, hot){ n = clamp(n,0,max); return `<div class="bars${max===10?" ten":""}${hot?" hot":""}">${Array.from({length:max},(_,i)=>`<i class="${i<n?"f":""}"></i>`).join("")}</div>`; }
+const TYPE = {direct:"直接竞品", indirect:"间接竞品", alternative:"替代方案"};
+const CONF = {high:"确信", medium:"较确信", low:"待核实"};
+const g = q => "https://www.google.com/search?q=" + encodeURIComponent(q);
+const bd = q => "https://www.baidu.com/s?wd=" + encodeURIComponent(q);
+const srcLinks = list => { const l = arr(list).filter(okUrl).slice(0,4); return l.length ? `<div class="src">${l.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(host(u))}</a>`).join("")}</div>` : ""; };
+
+function platforms(q){
+  const e = encodeURIComponent(q);
+  return [
+    ["小红书","真实用户吐槽",`https://www.xiaohongshu.com/search_result?keyword=${e}`],
+    ["知乎","深度讨论",`https://www.zhihu.com/search?type=content&q=${e}`],
+    ["B 站","测评视频",`https://search.bilibili.com/all?keyword=${e}`],
+    ["微信公众号","搜狗微信",`https://weixin.sogou.com/weixin?type=2&query=${e}`],
+    ["App Store","查同类 App",g("site:apps.apple.com "+q)],
+    ["百度","国内全网",bd(q)],
+    ["Product Hunt","海外新品",`https://www.producthunt.com/search?q=${e}`],
+    ["Reddit","海外吐槽",`https://www.reddit.com/search/?q=${e}`],
+    ["GitHub","开源实现",`https://github.com/search?q=${e}&type=repositories`],
+    ["V2EX","开发者讨论",g("site:v2ex.com "+q)],
+    ["Google Trends","海外热度趋势",`https://trends.google.com/trends/explore?q=${e}`],
+    ["百度指数","国内热度趋势",`https://index.baidu.com/v2/main/index.html#/trend/${e}?words=${e}`]
+  ];
+}
+function userLink(u){
+  const q = [u.where, u.channel].filter(Boolean).join(" ");
+  const c = String(u.channel||"");
+  if (/小红书/.test(c)) return `https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(u.where||"")}`;
+  if (/知乎/.test(c)) return `https://www.zhihu.com/search?type=content&q=${encodeURIComponent(u.where||"")}`;
+  if (/reddit/i.test(c)) return `https://www.reddit.com/search/?q=${encodeURIComponent(u.where||"")}`;
+  if (/b\s?站|bilibili/i.test(c)) return `https://search.bilibili.com/all?keyword=${encodeURIComponent(u.where||"")}`;
+  return g(q);
+}
+
+const TOOLS = [
+  ["names","起名字","8 个名字，附理由"],
+  ["landing","落地页文案","标题、卖点、FAQ"],
+  ["pitch","一句话卖点","电梯演讲和口号"],
+  ["spec","给 AI 编程 agent 的需求","可直接粘贴开写"],
+  ["post","冷启动帖子","小红书笔记 + V2EX 帖"],
+  ["interview","用户访谈提纲","验证需求用的 8 个问题"]
+];
+
+function renderReport(){
+  try { renderReportInner(); }
+  catch(e){
+    console.error(e);
+    if (current === EXAMPLE) throw e;
+    const bad = current;
+    hist = hist.filter(x => x !== bad); saveHist(hist);
+    current = EXAMPLE; renderReportInner(); renderHist();
+    showErr("有一条历史记录的数据损坏，无法显示，已经把它移除并切到示例报告。");
+  }
+}
+function renderReportInner(){
+  const h = current, r = h.report || {};
+  const v = r.verdict || {}, sat = r.saturation || {}, val = isObj(r.validation) ? r.validation : {};
+  const si = scoreInfo(r), dec = si.dec || "none";
+  const kws = [...arr(r.keywords?.zh), ...arr(r.keywords?.en)].filter(Boolean);
+  if (!kws.length) kws.push(h.idea.slice(0,20));
+  if (activeKw >= kws.length) activeKw = 0;
+  const date = new Date(h.createdAt);
+  const comps = arr(r.competitors);
+  const rivals = comps.filter(c => c.type !== "alternative").slice(0,3);
+  const freqCls = f => f==="高频" ? "" : f==="中频" ? "m" : "l";
+  const tr = r.trend || {};
+  const trCls = /升/.test(tr.direction||"") ? "up" : /降/.test(tr.direction||"") ? "down" : "";
+  const trArrow = trCls==="up" ? "↗ " : trCls==="down" ? "↘ " : "→ ";
+  const tk = encodeURIComponent(kws[0]);
+  const reasons = strArr(v.reasons).slice(0,3);
+  const headline = (typeof v.headline === "string" && v.headline.trim()) ? v.headline : HEADLINE[dec];
+  const nextStep = val.firstStep || arr(r.validationSteps)[0] || "";
+  const acc = (id, title, meta, body) => body ? `<details class="acc" data-acc="${id}"${openAcc.has(id)?" open":""}><summary><b>${title}</b><span class="meta">${meta}</span></summary><div class="abody">${body}</div></details>` : "";
+
+  /* ---------- stage 1: decision ---------- */
+  const scoreDetails = r.scores ? `
+      <details class="method" data-acc="method"${openAcc.has("method")?" open":""}><summary>查看评分依据</summary><div class="mbody">
+        <p>${si.ok ? `按下面的公开权重算出来是 <b>${si.score}/100</b>。` : "6 项评分不齐，所以不给总分和结论。"}这些分数是 Claude 对六个方面的判断，不是客观测量，适合用来理解结论从哪来，不适合拿去和别的点子比高低。</p>
+        <div class="meters">${DIMS.map(([k,l,w]) => `<div class="meter"><div class="top"><span>${l}</span><span>${numOk(r.scores[k]) ? clamp(r.scores[k],0,10) + "/10" : "缺失"} · ${w}%</span></div>${bars(r.scores[k],10)}</div>`).join("")}</div>
+        <table>${DIMS.map(([,l,w,d])=>`<tr><td>${l}</td><td>${w}%</td><td>${d}</td></tr>`).join("")}</table>
+        <p>规则：总分 = Σ(维度分 × 权重) ÷ 10。70 分及以上「值得做」，45–69「先验证」，45 以下「先别做」。同样的维度分永远得到同样的结论。</p>
+      </div></details>` : "";
+
+  const decision = `
+  <section class="stage" id="stage-1">
+    <div class="stage-head"><span class="no">1</span><div class="stage-title"><h2>值不值得试</h2><p>先看结论，决定要不要继续往下</p></div></div>
+    <div class="decision card">
+      <div class="dtop">
+        <div class="seal ${dec}" role="img" aria-label="${esc(si.ok ? VD[dec] : "评分缺失")}"><span class="v">${esc(si.ok ? VD[dec] : "待定")}</span></div>
+        <div class="dhead">
+          <p class="headline ${dec}">${esc(si.ok ? headline : HEADLINE.none)}</p>
+          ${si.ok ? "" : `<div class="notice">这份报告缺少完整的评分数据，所以不给结论。${h.example ? "" : "可以点最下面的「重新分析」再试一次。"}</div>`}
+          ${reasons.length ? `<ul class="reasons">${reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : (v.reason ? `<ul class="reasons"><li>${esc(v.reason)}</li></ul>` : "")}
+        </div>
+      </div>
+      <div class="dgrid">
+        <div class="dpanel"><span class="k">最关键的假设</span>
+          <span class="big">${esc(r.keyAssumption || "—")}</span>
+          <span class="note">这一条不成立，整个点子就不成立。</span></div>
+        <div class="dpanel"><span class="k">主要竞品</span>
+          ${rivals.length ? rivals.map(c => `<div class="comp-mini"><b>${esc(c.name)}</b><span>${esc(c.oneLiner)}</span></div>`).join("") : `<span class="note">没有找到直接竞品。</span>`}
+          ${comps.length > rivals.length ? `<a href="#acc-comps" data-open="comps" class="note">共 ${comps.length} 个，看详情 ↓</a>` : ""}</div>
+        <div class="dpanel next"><span class="k">下一步：先验证这件事</span>
+          ${nextStep ? `<span class="big">${esc(nextStep)}</span>` : ""}
+          ${(val.whoHasPain || val.howTheySolveNow || val.whereToFind10) ? `<dl class="qa">
+            ${val.whoHasPain ? `<dt>谁最痛</dt><dd>${esc(val.whoHasPain)}</dd>` : ""}
+            ${val.howTheySolveNow ? `<dt>现在怎么办</dt><dd>${esc(val.howTheySolveNow)}</dd>` : ""}
+            ${val.whereToFind10 ? `<dt>去哪找 10 个人</dt><dd>${esc(val.whereToFind10)}</dd>` : ""}</dl>` : ""}</div>
+      </div>
+      <div class="dfoot">
+        ${scoreDetails}
+      </div>
+    </div>`;
+
+  /* evidence: folded by default */
+  const evidence = [
+    acc("comps", "竞品详情", `${comps.length} 个${h.live ? " · ✓ 为实际查到的出处" : " · 「待核实」请自己搜一下"}`, comps.length ? `<div class="cgrid" id="acc-comps">
+      ${comps.map(c => `
+      <div class="comp">
+        <div class="top"><h4>${esc(c.name)}</h4><span class="conf ${c.confidence==="low"?"low":""}">${esc(CONF[c.confidence]||"较确信")}</span></div>
+        <div class="tags"><span class="tag ${esc(c.type)}">${esc(TYPE[c.type]||"竞品")}</span>${c.platform?`<span class="tag">${esc(c.platform)}</span>`:""}${c.region?`<span class="tag">${esc(c.region)}</span>`:""}</div>
+        ${c.pricing?`<div class="price">${esc(c.pricing)}</div>`:""}
+        <p>${esc(c.oneLiner)}</p>
+        <div class="pc">
+          <div><div class="h plus">做得好</div><ul>${arr(c.strengths).map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>
+          <div><div class="h minus">短板</div><ul>${arr(c.weaknesses).map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>
+        </div>
+        ${srcLinks(c.sources)}
+        ${c.type!=="alternative" ? `<div class="links"><a href="${g(c.name)}" target="_blank" rel="noopener">Google 核实 ↗</a><a href="${bd(c.name)}" target="_blank" rel="noopener">百度核实 ↗</a></div>`:""}
+      </div>`).join("")}</div>` : ""),
+    acc("voices", "用户怎么说", `${arr(r.praise).length} 条好评主题 · ${arr(r.complaints).length} 条吐槽`, (arr(r.praise).length || arr(r.complaints).length) ? `<div class="voices">
+      <div class="vcol"><div class="ttl"><span class="dot"></span>好评集中在</div>
+        ${arr(r.praise).map(p=>`<div class="vitem"><div class="t">${esc(p.theme)}</div><div class="d">${esc(p.detail)}</div>${srcLinks(p.sources)}</div>`).join("")}</div>
+      <div class="vcol"><div class="ttl"><span class="dot r"></span>吐槽集中在</div>
+        ${arr(r.complaints).map(p=>`<div class="vitem"><div class="t">${esc(p.theme)}<span class="freq ${freqCls(p.frequency)}">${esc(p.frequency||"偶发")}</span></div><div class="d">${esc(p.detail)}</div>${p.opportunity?`<div class="opp">${esc(p.opportunity)}</div>`:""}${srcLinks(p.sources)}</div>`).join("")}</div>
+    </div>` : ""),
+    acc("users", "第一批用户在哪", "正在讨论这个问题的人", arr(r.firstUsers).length ? `<div class="users">${arr(r.firstUsers).map(u=>`<div class="user"><span class="ch">${esc(u.channel)}</span><div><div>${esc(u.where)}</div><div class="how">${esc(u.how)}</div></div><a href="${esc(okUrl(u.url)?u.url:userLink(u))}" target="_blank" rel="noopener">去看看 ↗</a></div>`).join("")}</div>
+      ${arr(r.validationSteps).length ? `<div class="label">低成本验证步骤</div><ol class="vsteps">${arr(r.validationSteps).map(s=>`<li>${esc(s)}</li>`).join("")}</ol>` : ""}` : ""),
+    acc("diff", "差异化与换个方向", `${arr(r.gaps).length} 个切入点${arr(r.pivots).length ? ` · ${arr(r.pivots).length} 个转向思路` : ""}`, (arr(r.gaps).length || arr(r.pivots).length) ? `
+      <div class="gaps">${arr(r.gaps).map(x=>`<div class="gap"><b>${esc(x.title)}</b><span>${esc(x.detail)}</span></div>`).join("")}</div>
+      ${arr(r.pivots).length ? `<div class="label">如果原点子不行，可以换成</div><div class="pivots">${arr(r.pivots).map(p=>`<div class="pv"><b>${esc(p.title)}</b><span>${esc(p.detail)}</span>${p.why?`<div class="why">${esc(p.why)}</div>`:""}</div>`).join("")}</div>` : ""}` : ""),
+    acc("market", "市场与趋势", "粗估，仅供参考", (r.market || r.trend || sat.label) ? `
+      ${r.trend ? `<div class="trend"><span class="arrow ${trCls}">${trArrow}${esc(tr.direction||"不确定")}</span>
+        <div style="min-width:0;flex:1"><div>${esc(tr.reason)}</div>${arr(tr.signals).length?`<ul>${arr(tr.signals).map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:""}
+        <div class="links"><a href="https://trends.google.com/trends/explore?q=${tk}" target="_blank" rel="noopener">在 Google Trends 看曲线 ↗</a><a href="https://index.baidu.com/v2/main/index.html#/trend/${tk}?words=${tk}" target="_blank" rel="noopener">在百度指数看曲线 ↗</a></div></div></div>` : ""}
+      ${sat.label ? `<div class="note">市场饱和度：<b>${esc(sat.label)}</b>${sat.note?"。"+esc(sat.note):""}</div>` : ""}
+      ${r.market ? `<div class="note">下面是 Claude 按几条假设做的量级粗估，不是统计数据。对「今晚要不要做」来说，能不能找到 10 个有这个痛点的人更重要。</div>
+      <div class="mkt">
+        <div class="mcell"><span class="k">总体人群</span><span class="val">${esc(r.market.tam||"—")}</span></div>
+        <div class="mcell"><span class="k">你够得着的</span><span class="val">${esc(r.market.sam||"—")}</span></div>
+        <div class="mcell"><span class="k">第一年现实目标</span><span class="val">${esc(r.market.som||"—")}</span></div>
+      </div>
+      ${arr(r.market.assumptions).length ? `<div class="note">基于这些假设：${arr(r.market.assumptions).map(esc).join("；")}</div>`:""}` : ""}` : ""),
+    acc("risks", "盲点与风险", `${arr(r.blindSpots).length + arr(r.risks).length} 条`, (arr(r.blindSpots).length || arr(r.risks).length || arr(r.monetization).length) ? `<div class="two">
+      ${arr(r.blindSpots).length ? `<div><div class="label">你可能没想到的</div>${arr(r.blindSpots).map(x=>`<div class="item"><b>${esc(x.title)}</b><span>${esc(x.detail)}</span></div>`).join("")}</div>` : ""}
+      ${arr(r.risks).length ? `<div><div class="label">主要风险</div>${arr(r.risks).map(x=>`<div class="item"><b>${esc(x.title)}</b><span>${esc(x.detail)}</span></div>`).join("")}</div>` : ""}
+      ${arr(r.monetization).length ? `<div><div class="label">可参考的变现方式</div>${arr(r.monetization).map(x=>`<div class="item"><b>${esc(x.model)}</b><span>${esc(x.note)}</span></div>`).join("")}</div>` : ""}
+    </div>` : ""),
+    acc("verify", "去各平台核实", `${arr(h.sources).length ? `本次查阅 ${arr(h.sources).length} 个页面 · ` : ""}小红书、知乎、App Store…`, `
+      <div class="kw" id="kw">${kws.map((k,i)=>`<button type="button" data-i="${i}" aria-pressed="${i===activeKw}">${esc(k)}</button>`).join("")}</div>
+      <div class="plat">${platforms(kws[activeKw]).map(([nm,s,u])=>`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(nm)} ↗<span>${esc(s)}</span></a>`).join("")}</div>
+      ${arr(h.sources).length ? `<div class="label">本次查阅的来源</div><div class="sources">${h.sources.map(([t,u])=>`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join("")}</div>`:""}`)
+  ].join("");
+
+  const stage1 = decision + `
+    <div class="card accs">${evidence}</div>
+  </section>`;
+
+  /* ---------- stage 2: what can be borrowed ---------- */
+  const stage2 = `
+  <section class="stage" id="stage-2">
+    <div class="stage-head"><span class="no">2</span><div class="stage-title"><h2>有什么能借用</h2><p>别从零开始：先看别人的做法和现成的开源代码</p></div></div>
+    ${arr(r.borrow).length ? `<div class="card blk"><h3>可以借鉴的做法</h3>
+      <div class="rows">${arr(r.borrow).map(b=>`<div class="row"><span>${esc(b.idea)}</span><span class="from">${esc(b.from)}</span></div>`).join("")}</div></div>` : ""}
+    ${ghSection(h)}
+  </section>`;
+
+  /* ---------- stage 3: hand off ---------- */
+  const stage3 = `
+  <section class="stage" id="stage-3">
+    <div class="stage-head"><span class="no">3</span><div class="stage-title"><h2>交给 agent 开工</h2><p>决定动手后，划好第一版的范围，再交给编程 agent</p></div></div>
+    <div class="card blk"><h3>第一版做什么</h3>
+      <div class="est"><div><span>预估工作量 </span>${esc(r.mvp?.buildEstimate||"—")}</div><div><span>建议技术形态 </span>${esc(r.mvp?.stack||"—")}</div></div>
+      <div class="mvp">
+        <div><div class="h yes">必须有</div><ul>${arr(r.mvp?.core).map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>
+        <div><div class="h no">先别做</div><ul>${arr(r.mvp?.skip).map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>
+      </div></div>
+    ${ccSection(h)}
+  </section>`;
+
+  /* ---------- extras: folded ---------- */
+  const extras = `
+  <div class="card accs" data-noexport>
+    ${acc("tools", "工具箱", "起名、落地页、冷启动帖子、访谈提纲…按需生成", `
+      <div class="tools" id="tools">${TOOLS.map(([k,l,d])=>`<button type="button" class="tool" data-k="${k}" aria-pressed="${activeTool===k}"><b>${l}${h.tools?.[k]?` <span class="done">✓</span>`:""}</b><span>${d}</span></button>`).join("")}</div>
+      <div class="tout" id="tout" hidden></div>`)}
+    ${acc("chat", "继续追问", arr(h.chat).length ? `已问 ${arr(h.chat).filter(t=>t.role==="user").length} 个问题` : "对这份报告有疑问就问", `
+      <div class="chat">
+        <div class="examples" id="suggest"></div>
+        <div class="msgs" id="msgs"></div>
+        <form class="ask" id="ask"><input id="ask-in" placeholder="比如：如果只有两个周末，该砍掉什么？" maxlength="600"><button class="btn sm" id="ask-btn">发送</button></form>
+      </div>`)}
+  </div>`;
+
+  $("#report").innerHTML = `
+  <div class="card rhead">
+    <div class="rtags">
+      ${h.example ? `<span class="pill ex">示例 · 用这个工具本身的点子跑了一遍</span>` : ""}
+      <span class="pill ${h.live?"live":""}">${h.live ? `联网检索 · 查阅 ${arr(h.sources).length} 个页面` : "仅依据 Claude 已有知识，未联网"}</span>
+    </div>
+    <p class="rtitle">${esc(r.summary || h.idea)}</p>
+    <div class="rmeta"><span>形态 <b>${esc(h.platform)}</b></span><span>市场 <b>${esc(h.market)}</b></span><span>深度 <b>${esc((OPTS.depth.find(d=>d[0]===h.depth)||[,"标准"])[1])}</b></span><span>${esc(date.toLocaleString("zh-CN",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}))}</span></div>
+  </div>
+  <nav class="stepnav" aria-label="报告步骤" data-noexport>
+    <a href="#stage-1"><b>1</b>值不值得试</a><a href="#stage-2"><b>2</b>有什么能借用</a><a href="#stage-3"><b>3</b>交给 agent 开工</a>
+  </nav>
+  ${stage1}
+  ${stage2}
+  ${stage3}
+  ${extras}
+  <div class="card foot-actions" data-noexport>
+    <button class="btn ghost sm" type="button" id="dl-html" hidden>下载报告网页</button>
+    <button class="btn ghost sm" type="button" id="dl-md" hidden>下载 .md</button>
+    <button class="btn ghost sm" type="button" id="copy-md">复制为 Markdown</button>
+    ${h.example ? "" : `<button class="btn ghost sm" type="button" id="rerun">重新分析</button><button class="btn ghost sm" type="button" id="del">删除这条记录</button>`}
+    <button class="btn ghost sm" type="button" id="edit">改改点子再查</button>
+    <span class="note" id="foot-note"></span>
+  </div>`;
+
+  const smooth = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  $("#report").querySelectorAll(".stepnav a").forEach(a => a.onclick = e => { e.preventDefault(); $(a.getAttribute("href"))?.scrollIntoView({behavior:smooth, block:"start"}); });
+  $("#report").querySelectorAll("details[data-acc]").forEach(d => d.addEventListener("toggle", () => { d.open ? openAcc.add(d.dataset.acc) : openAcc.delete(d.dataset.acc); }));
+  $("#report").querySelectorAll("[data-open]").forEach(a => a.onclick = e => {
+    e.preventDefault(); const d = $(`details[data-acc="${a.dataset.open}"]`); if (!d) return;
+    d.open = true; openAcc.add(a.dataset.open); d.scrollIntoView({behavior:smooth, block:"start"});
+  });
+  $("#kw").querySelectorAll("button").forEach(b => b.onclick = () => { activeKw = +b.dataset.i; renderReport(); $("#kw")?.scrollIntoView({block:"nearest"}); });
+  $("#tools").querySelectorAll(".tool").forEach(b => b.onclick = () => runTool(b.dataset.k, false));
+  if (activeTool) showTool(activeTool);
+  wireGh();
+  wireCC();
+  ["如果只有两个周末，该砍掉哪些功能？","最关键的假设，怎么用一周时间验证？","和排第一的竞品比，我凭什么赢？","怎么用最低成本验证有没有人愿意付费？"].forEach(t => {
+    const b = document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=t;
+    b.onclick = () => { $("#ask-in").value = t; askSubmit(); };
+    $("#suggest").append(b);
+  });
+  renderChat();
+  $("#ask").onsubmit = e => { e.preventDefault(); askSubmit(); };
+  $("#copy-md").onclick = copyMd;
+  if (downloads) {
+    $("#dl-md").hidden = false; $("#dl-md").onclick = () => save("md");
+    $("#dl-html").hidden = false; $("#dl-html").onclick = () => save("html");
+  }
+  $("#edit").onclick = () => {
+    $("#idea").value = h.idea; setVal("platform",h.platform); setVal("market",h.market); setVal("depth",h.depth);
+    $("#form").scrollIntoView({block:"start"}); $("#idea").focus();
+  };
+  const rr = $("#rerun"); if (rr) rr.onclick = () => run(h.idea, h.platform, h.market, h.depth, !!h.live && liveReady(), true, h.id);
+  const dl = $("#del"); if (dl) {
+    let armed = false;
+    dl.onclick = () => {
+      if (!armed){ armed = true; dl.textContent = "再点一次确认删除"; setTimeout(()=>{ armed=false; if (dl.isConnected) dl.textContent="删除这条记录"; }, 3000); return; }
+      hist = hist.filter(x => x.id !== h.id); saveHist(hist); current = hist[0] || EXAMPLE; renderReport(); renderHist();
+    };
+  }
+  if (!sample) {
+    $("#ask-in").disabled = true; $("#ask-btn").disabled = true; $("#ask-in").placeholder = "需要在 claude.ai 中打开并允许使用 Claude 才能追问";
+  }
+}
+
+/* ---------- mini markdown ---------- */
+function md(src){
+  const lines = esc(src).split("\n"); let out = "", list = null, pre = false, buf = [];
+  const inline = s => s.replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+  const close = () => { if (list){ out += `</${list}>`; list = null; } };
+  for (const l of lines){
+    if (l.trim().startsWith("```")){ if (pre){ out += `<pre>${buf.join("\n")}</pre>`; buf=[]; pre=false; } else { close(); pre=true; } continue; }
+    if (pre){ buf.push(l); continue; }
+    let m;
+    if ((m = l.match(/^\s*[-*•]\s+(.*)/))){ if (list!=="ul"){ close(); out+="<ul>"; list="ul"; } out += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+[.)、]\s+(.*)/))){ if (list!=="ol"){ close(); out+="<ol>"; list="ol"; } out += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^#{1,4}\s+(.*)/))){ close(); out += `<p><b>${inline(m[1])}</b></p>`; }
+    else if (l.trim()===""){ close(); }
+    else { close(); out += `<p>${inline(l)}</p>`; }
+  }
+  close(); if (pre) out += `<pre>${buf.join("\n")}</pre>`;
+  return out;
+}
+function renderChat(){
+  const box = $("#msgs"); if (!box) return;
+  box.innerHTML = arr(current.chat).map(t => t.role==="user" ? `<div class="msg u">${esc(t.content)}</div>` : `<div class="msg a">${md(t.content)}</div>`).join("");
+}
+function reportBrief(h){ return `【点子】${h.idea}\n【形态】${h.platform}【市场】${h.market}\n【查新报告 JSON】${JSON.stringify(h.report).slice(0,14000)}`; }
+
+/* ---------- toolbox ---------- */
+const TOOL_PROMPTS = {
+  names: "为这个产品起 8 个名字：中文名和英文名都要有，每个附一句理由，以及适合的小程序名或域名思路（提醒用户自行查询能否注册）。用列表输出。",
+  landing: "写一版落地页文案：主标题、副标题、3 个核心卖点（各一句话说明）、行动按钮文字、3 条 FAQ。卖点要针对报告里竞品的短板和用户吐槽来写。用 markdown 小标题分段。",
+  pitch: "写一段 30 秒的电梯演讲（100 字以内），再给 5 个不同风格的一句话口号，最后用一句话说清和最强竞品的区别。",
+  spec: "写一份可以直接交给 AI 编程 agent（如 Claude Code、Cursor）的 MVP 需求文档，只覆盖报告里「第一版必须有」的功能：产品目标、页面清单、每个页面的功能和交互、数据结构、技术栈建议、明确不做的事、验收标准。用 markdown，结构清晰，避免空话。",
+  post: "写两篇冷启动帖子：一篇小红书笔记（标题带钩子，正文口语化，结尾引导评论，附 5 个话题标签），一篇 V2EX「分享创造」节点的帖子（真诚、讲清楚做了什么、为什么做、求反馈）。不要夸大。",
+  interview: "写一份用户访谈提纲，用来验证报告里「最关键的假设」：先写访谈目标和要找什么样的人，再写 8 个开放式问题（问过去的真实行为，不问「你会不会用」这种假设性问题），最后写判断需求成立的 3 个信号。"
+};
+function showTool(k){
+  const box = $("#tout"); if (!box) return;
+  const meta = TOOLS.find(t => t[0]===k); const out = current.tools?.[k];
+  const err = toolErr[current.id + ":" + k];
+  const body = out ? md(out) : (toolBusy && activeTool === k) ? "生成中…" : err ? `<span class="vwarn">${esc(err)}</span>` : (sample ? "点「生成」开始。" : "需要在 claude.ai 中打开并允许使用 Claude 才能生成。");
+  box.hidden = false;
+  box.innerHTML = `<div class="bar"><b>${esc(meta[1])}</b><span class="actions">${out?`<button class="btn ghost sm" type="button" id="t-copy">复制</button>`:""}${sample?`<button class="btn ghost sm" type="button" id="t-redo">${out?"重新生成":err?"重试":"生成"}</button>`:""}</span></div>
+    <div class="mdout" id="t-out">${body}</div>`;
+  const c = $("#t-copy"); if (c) c.onclick = () => copyText(out, $("#t-copy"));
+  const rd = $("#t-redo"); if (rd) rd.onclick = () => runTool(k, true);
+}
+let toolBusy = false;
+const toolErr = {}, planErr = {};
+async function runTool(k, force){
+  activeTool = k;
+  $("#tools").querySelectorAll(".tool").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.k===k)));
+  const h = current; h.tools = h.tools || {};
+  if ((h.tools[k] && !force) || !sample || toolBusy){ showTool(k); return; }
+  delete toolErr[h.id + ":" + k];
+  toolBusy = true; showTool(k);
+  const rd = $("#t-redo"); if (rd) rd.disabled = true;
+  try {
+    const prompt = `你是一位务实的产品和增长顾问。根据下面的点子和查新报告完成任务。简体中文，具体、可直接使用，不编造数据。\n\n${reportBrief(h)}\n\n【任务】${TOOL_PROMPTS[k]}`;
+    const { text } = await sample(prompt, { cache:false, onText: ({text}) => { if (activeTool===k && current===h) { const o = $("#t-out"); if (o) o.innerHTML = md(text); } } });
+    h.tools[k] = text;
+    if (!h.example) saveHist(hist);
+  } catch(e){
+    if (e?.code !== "cancelled") toolErr[h.id + ":" + k] = (ERR[e?.code] || "生成中断了，请再试一次。");
+  } finally {
+    toolBusy = false;
+    if (current===h && activeTool===k){ renderToolsBadges(); showTool(k); }
+    if (current===h && k==="spec") renderCC();
+  }
+}
+function renderToolsBadges(){
+  $("#tools")?.querySelectorAll(".tool").forEach(b => { const k=b.dataset.k, meta=TOOLS.find(t=>t[0]===k); b.querySelector("b").innerHTML = esc(meta[1]) + (current.tools?.[k] ? ` <span class="done">✓</span>` : ""); });
+}
+
+/* ---------- export ---------- */
+function toMd(h){
+  const r = h.report || {}, v = r.verdict || {}, L = [];
+  L.push(`# 点子查新报告`, ``, `**点子**：${h.idea}`, ``, `形态：${h.platform} ｜ 市场：${h.market} ｜ ${h.live?"联网检索":"未联网"} ｜ ${new Date(h.createdAt).toLocaleString("zh-CN")}`, ``);
+  L.push(`## 结论：${verdictText(r)}`, ``);
+  strArr(v.reasons).forEach(x => L.push(`- ${x}`));
+  if (v.reason) L.push(``, v.reason);
+  L.push(``);
+  const val = isObj(r.validation) ? r.validation : {};
+  if (val.firstStep || val.whoHasPain){ L.push(`**下一步验证**：${val.firstStep||""}`); if (val.whoHasPain) L.push(`- 谁最痛：${val.whoHasPain}`); if (val.howTheySolveNow) L.push(`- 现在怎么办：${val.howTheySolveNow}`); if (val.whereToFind10) L.push(`- 去哪找 10 个人：${val.whereToFind10}`); L.push(``); }
+  if (r.scores) { DIMS.forEach(([k,l,w]) => L.push(`- ${l}：${clamp(r.scores[k],0,10)}/10（权重 ${w}%）`)); L.push(``); }
+  if (r.saturation?.label) L.push(`市场饱和度：${r.saturation.label}。${r.saturation.note||""}`, ``);
+  if (r.keyAssumption) L.push(`**最关键的假设**：${r.keyAssumption}`, ``);
+  if (arr(r.blindSpots).length){ L.push(`**你可能没想到的**`); arr(r.blindSpots).forEach(x=>L.push(`- ${x.title}：${x.detail}`)); L.push(``); }
+  if (r.market){ L.push(`## 市场规模（粗估）`, ``, `- TAM：${r.market.tam||""}`, `- SAM：${r.market.sam||""}`, `- SOM：${r.market.som||""}`, ``); }
+  if (r.trend){ L.push(`需求趋势：${r.trend.direction||""}。${r.trend.reason||""}`, ``); }
+  L.push(`## 竞品`, ``);
+  arr(r.competitors).forEach(c => { L.push(`### ${c.name}（${TYPE[c.type]||"竞品"}｜${CONF[c.confidence]||""}）`, `${c.platform||""} ${c.region||""} ${c.pricing||""}`.trim(), ``, c.oneLiner||"", ``, `- 做得好：${arr(c.strengths).join("；")}`, `- 短板：${arr(c.weaknesses).join("；")}`); arr(c.sources).filter(okUrl).forEach(u=>L.push(`- 来源：${u}`)); L.push(``); });
+  L.push(`## 网友评价`, ``, `**好评**`); arr(r.praise).forEach(p=>L.push(`- ${p.theme}：${p.detail}`));
+  L.push(``, `**吐槽**`); arr(r.complaints).forEach(p=>L.push(`- [${p.frequency||""}] ${p.theme}：${p.detail}${p.opportunity?` → 机会：${p.opportunity}`:""}`));
+  L.push(``, `## 可借鉴`, ``); arr(r.borrow).forEach(b=>L.push(`- ${b.idea}（${b.from}）`));
+  L.push(``, `## 差异化切入点`, ``); arr(r.gaps).forEach(x=>L.push(`- **${x.title}**：${x.detail}`));
+  if (arr(r.pivots).length){ L.push(``, `## 转向方向`, ``); arr(r.pivots).forEach(p=>L.push(`- **${p.title}**：${p.detail} ${p.why||""}`)); }
+  L.push(``, `## MVP 建议`, ``, `工作量：${r.mvp?.buildEstimate||""}`, `技术形态：${r.mvp?.stack||""}`, ``, `必须有：`); arr(r.mvp?.core).forEach(s=>L.push(`- ${s}`));
+  L.push(``, `先别做：`); arr(r.mvp?.skip).forEach(s=>L.push(`- ${s}`));
+  if (h.github && arr(h.github.repos).length){
+    L.push(``, `## GitHub 现成项目`, ``, `**${h.github.verdict||""}**：${h.github.advice||""}`, ``);
+    h.github.repos.forEach(x => L.push(`- [${x.name}](${x.url})｜复用度 ${x.fit||""}｜${x.stars!=null?"★"+x.stars+"｜":""}${x.license||"许可证未知"}｜${x.stack||""}`, `  - ${x.description||""}`, `  - 怎么用：${x.reuse||""}`, ...(x.watchOut?[`  - 注意：${x.watchOut}`]:[])));
+    Object.entries(h.github.plans||{}).forEach(([k,v]) => L.push(``, `### 基于 ${k} 起步`, ``, v));
+  }
+  if (arr(r.firstUsers).length){ L.push(``, `## 第一批用户在哪`, ``); arr(r.firstUsers).forEach(u=>L.push(`- **${u.channel}** ${u.where}：${u.how}`)); }
+  L.push(``, `## 风险`, ``); arr(r.risks).forEach(x=>L.push(`- **${x.title}**：${x.detail}`));
+  L.push(``, `## 变现`, ``); arr(r.monetization).forEach(x=>L.push(`- **${x.model}**：${x.note}`));
+  L.push(``, `## 验证步骤`, ``); arr(r.validationSteps).forEach((s,i)=>L.push(`${i+1}. ${s}`));
+  TOOLS.forEach(([k,l]) => { if (h.tools?.[k]) L.push(``, `## ${l}`, ``, h.tools[k]); });
+  if (arr(h.sources).length){ L.push(``, `## 来源`, ``); h.sources.forEach(([t,u])=>L.push(`- [${t}](${u})`)); }
+  L.push(``, `> 由「点子雷达」生成。${h.live?"已联网检索，":"未联网，"}请自行核实重要结论。`);
+  return L.join("\n");
+}
+function toHtml(){
+  const css = document.querySelector("style").textContent;
+  const clone = $("#report").cloneNode(true);
+  clone.querySelectorAll("[data-noexport]").forEach(n => n.remove());
+  clone.querySelectorAll(".kw").forEach(n => n.remove());
+  clone.querySelectorAll("details").forEach(d => d.setAttribute("open",""));
+  const fonts = document.querySelector('link[rel="stylesheet"]').outerHTML;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>点子查新报告 · ${esc(current.idea.slice(0,30))}</title>${fonts}<style>${css}body{padding-block:28px}.report{max-width:960px;margin:0 auto}</style></head><body>${clone.outerHTML}<p class="disclaimer" style="max-width:960px;margin:16px auto">由「点子雷达」生成。${current.live?"已联网检索，带 ✓ 的条目为实际查到的出处。":"未联网，结论依据 Claude 已有知识。"}</p></body></html>`;
+}
+async function save(kind){
+  const note = $("#foot-note");
+  const base = "点子查新-" + current.idea.replace(/[\\/:*?"<>|\n\r]/g,"").slice(0,16);
+  try {
+    await downloads.save(kind==="md" ? {filename: base+".md", data: toMd(current)} : {filename: base+".html", data: new Blob([toHtml()],{type:"text/html"})});
+    note.textContent = "";
+  } catch(e){ if (e && e.code !== "cancelled" && e.code !== "declined") note.textContent = "没能保存文件，可以先用「复制为 Markdown」。"; }
+}
+async function copyText(t, btn){
+  try { await navigator.clipboard.writeText(t); if (btn){ const o = btn.textContent; btn.textContent = "已复制"; setTimeout(()=>{ if (btn.isConnected) btn.textContent = o; }, 1500); } return true; }
+  catch(e){ return false; }
+}
+async function copyMd(){
+  const t = toMd(current), note = $("#foot-note");
+  if (await copyText(t)) { note.textContent = "已复制"; return; }
+  const ta = document.createElement("textarea"); ta.value = t; ta.style.cssText="width:100%;min-height:160px;margin-top:8px";
+  note.textContent = "浏览器不允许自动复制，请手动全选复制："; note.after(ta); ta.select();
+}
+
+/* ---------- live browsing (Claude desktop built-in browser) ---------- */
+const BROWSER = "host:claude_browser";
+let tabId = null, chain = Promise.resolve(), visited = [], liveIssue = "";
+/* Search connectors the viewer may have connected in claude.ai, in order of preference. */
+const PROVIDERS = [
+  {server:"Parallel Search", search:"web_search", fetch:"web_fetch"},
+  {server:"Tavily", search:"tavily_search", fetch:"tavily_extract"},
+  {server:"Exa", search:"web_search_exa", fetch:null}
+];
+let liveProvider = null;
+const liveReady = () => !!(mcp && liveProvider);
+function addVisited(title, url){
+  if (!okUrl(url) || visited.length >= 40 || visited.some(v => v[1] === url)) return;
+  visited.push([String(title).slice(0,80), url]);
+}
+function firstStr(input){
+  for (const v of Object.values(input || {})){
+    if (typeof v === "string" && v.trim()) return v.slice(0,80);
+    if (Array.isArray(v) && v.length && typeof v[0] === "string") return v.join(" / ").slice(0,80);
+  }
+  return JSON.stringify(input || {}).slice(0,80);
+}
+function fitSchema(s){
+  if (JSON.stringify(s).length <= 3800) return s;
+  const strip = o => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object"){ const r = {}; for (const [k,v] of Object.entries(o)) if (k!=="description" && k!=="examples" && k!=="title") r[k] = strip(v); return r; } return o; };
+  return strip(s);
+}
+function connMsg(e, server){
+  switch (e?.code){
+    case "needs_reauth": return `${server} 需要在 claude.ai 的连接器设置里重新连接`;
+    case "server_not_connected": case "server_not_found": return `没有连接 ${server}`;
+    case "not_in_manifest": case "approval_required": case "blocked_by_policy": return `本页没有获得使用 ${server} 的许可`;
+    case "server_unavailable": return `${server} 暂时不可用`;
+    case "tool_error": return `${server} 返回错误：${String(e.message||"").slice(0,80)}`;
+    case "cancelled": return "已停止";
+    default: return "搜索服务暂时没有响应";
+  }
+}
+async function connectorTools(signal){
+  const p = liveProvider;
+  const perms = await claude.use("permissions").catch(() => null);
+  if (perms){
+    const st = await perms.request(["mcp:" + p.server]).catch(() => ({}));
+    if (st["mcp:" + p.server] === "denied") throw new Error(`你没有允许本页使用 ${p.server}`);
+  }
+  const mk = async (tool, name, extra) => {
+    let d; try { d = await mcp.describeTool(p.server, tool); } catch(e){ return null; }
+    const schema = d && d.inputSchema && typeof d.inputSchema === "object" && d.inputSchema.type === "object" ? fitSchema(d.inputSchema) : null;
+    if (!schema) return null;
+    return { name, description: (String(d.description||"").slice(0,700) + " " + extra).slice(0,1000), inputSchema: schema,
+      execute: async (input) => {
+        const label = name === "web_search" ? "搜索" : "阅读", shown = firstStr(input);
+        logLine(label + "：" + shown);
+        try {
+          const res = await mcp.callTool(p.server, tool, input, {signal, cache:false});
+          const text = textOf(res);
+          noteRepos(text);
+          if (name === "read_page"){ const u = Object.values(input||{}).flat().find(okUrl); if (u) addVisited(host(u), u); }
+          (text.match(/https?:\/\/[^\s"'<>\\)\]]+/g) || []).slice(0,6).forEach(u => addVisited(host(u), u.replace(/[.,;，。]+$/,"")));
+          return text.slice(0, 9000);
+        } catch(e){ const m = connMsg(e, p.server); liveIssue = m; logLine(label + " 失败：" + m); throw new Error(m); }
+      } };
+  };
+  const search = await mk(p.search, "web_search", "用来找竞品、用户评价、吐槽和讨论帖。");
+  if (!search) throw new Error(`读不到 ${p.server} 的工具说明，请确认已允许本页使用它`);
+  const fetchTool = p.fetch ? await mk(p.fetch, "read_page", "用来打开竞品官网、应用商店页或讨论帖，读取正文。") : null;
+  return { tools: [search, fetchTool].filter(Boolean), hasFetch: !!fetchTool };
+}
+async function buildLiveTools(signal){
+  if (liveProvider.kind === "browser") return { tools: browserTools(signal), hasFetch: true };
+  return connectorTools(signal);
+}
+function textOf(res){
+  if (typeof res?.payload === "string") return res.payload;
+  const t = arr(res?.content).filter(c => c.type==="text").map(c => c.text).join("\n");
+  return t || JSON.stringify(res?.payload ?? "");
+}
+function mcpMsg(e){
+  const c = e?.code;
+  if (c==="server_not_connected" || c==="capability_disabled" || c==="not_granted") return "内置浏览器不可用：请在 Claude 桌面版里打开本页。";
+  if (c==="not_in_manifest" || c==="approval_required" || c==="blocked_by_policy") return "没有获得使用内置浏览器的许可。";
+  if (c==="cancelled") return "这次浏览被取消了。";
+  return "浏览器暂时没有响应。";
+}
+function noteRepos(text){
+  const t = String(text||"");
+  (t.match(/https?:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/g) || []).forEach(u => seenRepos.add(u.toLowerCase().replace(/^http:/,"https:").replace(/\.git$/,"")));
+  for (const m of t.matchAll(/github\.com\s*›\s*([A-Za-z0-9_.-]+)\s*›\s*([A-Za-z0-9_.-]+)/g)) seenRepos.add(`https://github.com/${m[1]}/${m[2]}`.toLowerCase());
+}
+function logLine(t){ const l = $(logTarget); if (!l) return; l.hidden = false; const d = document.createElement("div"); d.textContent = t; l.append(d); l.scrollTop = l.scrollHeight; }
+function browse(url, signal){
+  const job = chain.then(async () => {
+    if (signal.aborted) throw new Error("已停止");
+    const open = async () => {
+      if (!tabId){
+        const r = await mcp.callTool(BROWSER, "preview_start", {url}, {signal, cache:false});
+        const m = textOf(r).match(/tabId[:\s]+["']?([A-Za-z0-9_-]+)/); tabId = m ? m[1] : null;
+      } else {
+        await mcp.callTool(BROWSER, "navigate", {url, tabId}, {signal, cache:false});
+      }
+    };
+    try { await open(); } catch(e){ if (tabId && e?.code === "tool_error"){ tabId = null; await open(); } else throw e; }
+    await sleep(1800);
+    const r2 = await mcp.callTool(BROWSER, "get_page_text", tabId ? {tabId, max_chars:7000} : {max_chars:7000}, {signal, cache:false});
+    return textOf(r2).split("\nTab Context:")[0].slice(0,7000);
+  });
+  chain = job.catch(()=>{});
+  return job;
+}
+function browserTools(signal){
+  const wrap = (label, fn) => async (input) => {
+    try { return await fn(input); }
+    catch(e){ const m = e?.code ? mcpMsg(e) : (e?.message || "浏览失败"); liveIssue = m; logLine(label + " 失败：" + m); throw new Error(m); }
+  };
+  return [
+    { name:"web_search", description:"用 Bing 搜索网页，返回搜索结果页的文字（标题、摘要、网站）。query 填中文或英文关键词。用来找竞品、评价、吐槽、讨论帖。",
+      inputSchema:{type:"object",properties:{query:{type:"string",description:"搜索关键词"}},required:["query"]},
+      execute: wrap("搜索", async ({query}) => {
+        const q = String(query||"").slice(0,120); if (!q) throw new Error("query 为空");
+        const url = "https://www.bing.com/search?q=" + encodeURIComponent(q);
+        logLine("搜索：" + q);
+        const t = await browse(url, signal);
+        noteRepos(t);
+        visited.push(["Bing 搜索：" + q, url]);
+        return t;
+      }) },
+    { name:"read_page", description:"打开一个网址，返回页面正文文字（约 7000 字以内）。用来核实竞品官网、应用商店页、评测或评论帖。",
+      inputSchema:{type:"object",properties:{url:{type:"string",description:"完整网址，以 http 或 https 开头"}},required:["url"]},
+      execute: wrap("阅读", async ({url}) => {
+        const u = String(url||""); if (!okUrl(u)) throw new Error("网址必须以 http(s) 开头");
+        logLine("阅读：" + u);
+        const t = await browse(u, signal);
+        noteRepos(t);
+        const title = (t.match(/^Title:\s*(.+)$/m)||[])[1];
+        visited.push([(title || host(u)).slice(0,80), u]);
+        return t;
+      }) }
+  ];
+}
+
+/* ---------- GitHub: existing open-source projects to start from ---------- */
+function ghUrl(r){
+  const m = String(r?.url||"").match(/^https?:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/i);
+  if (m) return m[0].replace(/^http:/,"https:").replace(/\.git$/,"");
+  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(String(r?.name||""))) return "https://github.com/" + r.name;
+  return null;
+}
+function licTag(l){
+  const s = String(l ?? "").trim();
+  if (!s || /^(未知|无|none|null|unknown|n\/a)$/i.test(s)) return `<span class="tag lic-warn">没看到许可证</span>`;
+  if (/gpl/i.test(s) && !/lgpl/i.test(s)) return `<span class="tag lic-warn">${esc(s)} · 改了要开源</span>`;
+  if (/mit|apache|bsd|isc|mpl|unlicense|cc0|lgpl/i.test(s)) return `<span class="tag lic-ok">${esc(s)}</span>`;
+  return `<span class="tag">${esc(s)}</span>`;
+}
+function ghSection(h, num){
+  const G = h.github, busy = ghBusyId === h.id;
+  const r = h.report || {};
+  const tips = (G && arr(G.searchTips).length ? G.searchTips : [...arr(r.keywords?.en), ...arr(r.keywords?.zh)]).slice(0,5);
+  const tipLinks = tips.length ? `<div class="links"><span class="note">自己去 GitHub 搜：</span>${tips.map(t=>`<a href="https://github.com/search?q=${encodeURIComponent(t)}&type=repositories&s=stars" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join("")}</div>` : "";
+  const head = `<h3>GitHub 开源项目<span class="sub">能直接 fork 或借用模块的仓库</span></h3>`;
+  const how = liveReady() ? `会用 ${esc(liveProvider.label)} 实际搜索 GitHub，带回 star 数和许可证。` : "当前没有联网，只能列出 Claude 知道的较知名项目，结果需要自己核实。";
+  let body;
+  if (busy){
+    body = `<div class="prog-row"><span class="note">正在 GitHub 上找相似项目… ${liveReady()?"通常 30–90 秒":""}</span><button class="btn ghost sm" type="button" id="gh-stop">停止</button></div><div class="log" id="gh-log" hidden></div>`;
+  } else if (!G){
+    body = `${h.githubError?`<div class="notice">${esc(h.githubError)}</div>`:""}
+      <div class="ghempty"><span>决定继续这个点子之后，再去找能直接拿来改的开源项目。${how}大约 30–90 秒，会多用一次额度。</span>
+      <div class="actions" data-noexport><button class="btn accent sm" type="button" id="gh-run" ${sample?"":"disabled"}>去 GitHub 找开源项目</button>${sample?"":`<span class="note">需要在 claude.ai 中打开并允许使用 Claude。</span>`}</div></div>${tipLinks}`;
+  } else {
+    const vc = /直接/.test(G.verdict||"") ? "" : /借鉴/.test(G.verdict||"") ? "mid" : "none";
+    const fitCls = f => f==="高" ? "hi" : f==="中" ? "mid" : "";
+    const repos = arr(G.repos);
+    body = `${h.githubError?`<div class="notice">${esc(h.githubError)}</div>`:""}
+      <div class="ghverdict"><span class="vd ${vc}">${esc(G.verdict||"结果")}</span><p>${esc(G.advice)}</p></div>
+      ${repos.length ? `<div class="cgrid">${repos.map((x,i) => `
+        <div class="comp repo">
+          <div class="top"><h3><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a></h3><span class="fit ${fitCls(x.fit)}">复用度 ${esc(x.fit||"—")}</span></div>
+          <div class="tags">${x.stars!=null && x.stars!=="" ? `<span class="tag">★ ${esc(x.stars)}</span>`:""}${licTag(x.license)}${x.stack?`<span class="tag">${esc(x.stack)}</span>`:""}${x.lastActive?`<span class="tag">${esc(x.lastActive)}</span>`:""}</div>
+          <p>${esc(x.description)}</p>
+          ${x.reuse?`<div class="reuse"><b>怎么用：</b>${esc(x.reuse)}</div>`:""}
+          ${x.watchOut?`<div class="watch"><b>注意：</b>${esc(x.watchOut)}</div>`:""}
+          <div class="links">${G.live ? (x.verified ? `<span class="vok">✓ 在搜索结果中看到</span>` : `<span class="vwarn">搜索结果里没看到，待核实</span>`) : `<span class="vwarn">未联网，待核实</span>`}
+            <button class="btn ghost sm" type="button" data-plan="${i}" data-noexport ${sample?"":"disabled"}>${G.plans?.[x.name]?"查看起步方案":"用它起步"}</button></div>
+        </div>`).join("")}</div>` : `<p class="note" style="margin:0">没有找到合适的仓库。</p>`}
+      <div class="tout" id="gh-plan" hidden data-noexport></div>
+      <div class="actions" data-noexport><button class="btn ghost sm" type="button" id="gh-rerun" ${sample?"":"disabled"}>重新查找</button><span class="note">${G.live?"联网查找":"未联网"} · ${esc(new Date(G.at).toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}))}</span></div>
+      ${tipLinks}`;
+  }
+  return `<div class="card blk" id="gh-sec">${head}${body}</div>`;
+}
+function renderGh(h){
+  const sec = $("#gh-sec");
+  if (!sec || current !== h) return;
+  sec.outerHTML = ghSection(h, ghNum);
+  wireGh();
+  renderCC();
+}
+
+/* ---------- hand-off to Claude Code (assembled from the report, no extra quota) ---------- */
+const licRisky = l => { const s = String(l ?? "").trim(); return !s || /^(未知|无|none|null|unknown|n\/a)$/i.test(s) || (/gpl/i.test(s) && !/lgpl/i.test(s)); };
+function ccRepos(h){ return arr(h.github?.repos).filter(x => x.fit === "高" || x.fit === "中").slice(0,4); }
+function ccResolveBase(h){
+  const repos = ccRepos(h);
+  if (ccBase !== null && (ccBase === "" || repos.some(x => x.name === ccBase))) return ccBase;
+  const hi = repos.find(x => x.fit === "高" && !licRisky(x.license));
+  return hi ? hi.name : "";
+}
+/* Coding agents and the instruction file each one reads (checked 2026-10-31 against each tool's docs). */
+const AGENTS = [
+  {id:"claude",  name:"Claude Code",           file:"CLAUDE.md",    cli:"claude"},
+  {id:"codex",   name:"Codex",                 file:"AGENTS.md",    cli:"codex"},
+  {id:"workbuddy", name:"WorkBuddy / CodeBuddy", file:"CODEBUDDY.md", open:"打开 WorkBuddy 新建任务（写代码选编程模式），把工作目录选成这个文件夹"},
+  {id:"cursor",  name:"Cursor",                file:"AGENTS.md",    open:"用 Cursor 打开这个文件夹，在 Agent 对话框里"},
+  {id:"trae",    name:"Trae",                  file:"project.md",   dir:".trae/rules", open:"用 Trae 打开这个文件夹，在 Agent 对话里"},
+  {id:"gemini",  name:"Gemini CLI",            file:"GEMINI.md",    cli:"gemini"},
+  {id:"copilot", name:"GitHub Copilot",        file:"copilot-instructions.md", dir:".github", open:"用 VS Code 打开这个文件夹，切到 Copilot 的 Agent 模式"},
+  {id:"other",   name:"其他 agent",            file:"AGENTS.md",    open:"打开你用的 agent，把工作目录设成这个文件夹"}
+];
+let ccAgent = "claude", ccMore = false;
+const PRIMARY = ["claude","codex","other"];
+try { const a = localStorage.getItem(KEY + "-agent"); if (AGENTS.some(x => x.id === a)) ccAgent = a; } catch(e){}
+const agentOf = id => AGENTS.find(x => x.id === id) || AGENTS[0];
+const agentPath = a => (a.dir ? a.dir + "/" : "") + a.file;
+
+function buildHandoff(h, base, format, agent){
+  const r = h.report || {}, v = r.verdict || {};
+  const repo = arr(h.github?.repos).find(x => x.name === base);
+  const isFile = format === "file", L = [];
+  const list = (a, f) => arr(a).forEach(x => L.push("- " + f(x)));
+  if (isFile) L.push(`# ${agent.id === "trae" || agent.id === "copilot" ? "项目说明" : agent.file}`, ``, `> 由「点子雷达」根据查新报告生成。放在 ${agentPath(agent)}，${agent.name} 每次开工都会先读它。`, ``);
+  else L.push(`请帮我开发下面这个项目。先完整读完这份简报${repo ? "和仓库代码" : ""}，再动手。`, ``);
+  L.push(`## 项目是什么`, ``, r.summary || h.idea, ``, `- 原始想法：${h.idea}`, `- 产品形态：${h.platform}`, `- 目标市场：${h.market}`, ``);
+  L.push(`## 为什么做、怎么做才有机会`, ``, `查新结论：${verdictText(r)}。${v.reason || ""}`, ``);
+  if (arr(r.gaps).length){ L.push(`差异化是和竞品拉开差距的关键，实现时优先保证：`); list(r.gaps, x => `**${x.title}**：${x.detail}`); L.push(``); }
+  if (r.keyAssumption) L.push(`最关键的假设：${r.keyAssumption} 第一版要能尽快验证它。`, ``);
+  L.push(`## 起点`, ``);
+  if (repo){
+    L.push(`基于开源项目 **${repo.name}** 改造，不要从零写：${repo.url}`, ``,
+      `- 许可证：${repo.license || "未知"}`, `- 技术栈：${repo.stack || "见仓库"}`);
+    if (repo.reuse) L.push(`- 怎么用：${repo.reuse}`);
+    if (repo.watchOut) L.push(`- 注意：${repo.watchOut}`);
+    L.push(``, `开始前先确认许可证允许改用，读懂仓库结构和 README，在本地跑起来以后再按下面的清单改造。`);
+    if (licRisky(repo.license)) L.push(`这个仓库的许可证未知或是 GPL 类（改了也要开源），动手前先和我确认。`);
+    L.push(``);
+  } else {
+    L.push(`从零开始。建议技术形态：${r.mvp?.stack || "请你提议，先和我确认"}。`, ``);
+  }
+  L.push(`## 第一版要做（MVP）`, ``); arr(r.mvp?.core).forEach(s => L.push(`- [ ] ${s}`)); L.push(``);
+  if (arr(r.mvp?.skip).length){ L.push(`## 第一版先不做`, ``); list(r.mvp.skip, s => s); L.push(``); }
+  if (arr(r.complaints).length){ L.push(`## 竞品被吐槽的地方，别重蹈覆辙`, ``); list(r.complaints, x => `${x.theme}：${x.detail}${x.opportunity ? ` → 我们的做法：${x.opportunity}` : ""}`); L.push(``); }
+  if (arr(r.borrow).length){ L.push(`## 可以借鉴的做法`, ``); list(r.borrow, x => `${x.idea}（参考 ${x.from}）`); L.push(``); }
+  const comps = arr(r.competitors).filter(c => c.type !== "alternative").slice(0,5);
+  if (comps.length){ L.push(`## 主要竞品`, ``); list(comps, c => `${c.name}：${c.oneLiner || ""}`); L.push(``); }
+  if (arr(r.risks).length){ L.push(`## 风险提醒`, ``); list(r.risks, x => `${x.title}：${x.detail}`); L.push(``); }
+  L.push(`## 验收标准`, ``);
+  arr(r.mvp?.core).forEach(s => L.push(`- [ ] 「${s}」能在本地完整演示一遍`));
+  L.push(`- [ ] 在目标形态（${h.platform}）上能正常使用`, `- [ ] 一条命令就能在本地启动，README 写清启动方法和需要的环境变量`, `- [ ] 没有把任何 API key 写进代码仓库`, ``);
+  const plan = repo && h.github?.plans?.[repo.name];
+  if (plan) L.push(`## 改造方案（点子雷达生成，供参考）`, ``, plan, ``);
+  if (h.tools?.spec) L.push(`## 详细需求（点子雷达生成，供参考）`, ``, h.tools.spec, ``);
+  L.push(isFile ? `## 工作规则` : `## 请这样工作`, ``,
+    `1. 先读完整份${isFile ? "文件" : "简报"}${repo ? "和仓库代码" : ""}，把不清楚的地方列出来问我，再给出分步实现计划，等我确认后才写代码。`,
+    `2. 一次只做一个功能，做完告诉我怎么验证，再做下一个。`,
+    `3. 只做「第一版要做」里的功能，不要自己加需求；觉得该加的先提出来。`,
+    `4. 需要 API key 或付费服务时先问我，用环境变量读取，不要写死在代码里。`);
+  return L.join("\n");
+}
+function ccSection(h, num){
+  const repos = ccRepos(h), base = ccResolveBase(h);
+  const repo = repos.find(x => x.name === base);
+  const ag = agentOf(ccAgent), fmt = ccFormat;
+  const dir = repo ? repo.name.split("/")[1] : "my-app";
+  const lines = repo ? [`git clone ${repo.url}`, `cd ${dir}`] : [`mkdir ${dir}`, `cd ${dir}`];
+  if (fmt === "file" && ag.dir) lines.push(`mkdir -p ${ag.dir}`);
+  if (fmt === "prompt" && ag.cli) lines.push(ag.cli);
+  const getCode = repo ? "拉下仓库" : "新建项目文件夹";
+  const start = ag.cli ? `在这个文件夹里运行 ${ag.cli}` : ag.open;
+  const steps = fmt === "file"
+    ? [`在终端运行下面的命令${getCode}${ag.dir ? `，并建好 ${ag.dir} 文件夹` : ""}。`,
+       `点「下载 ${ag.file}」${downloads ? "" : "（或复制后自己存成这个文件名）"}，${ag.dir ? `把文件放到 ${agentPath(ag)}。Mac 的访达默认看不到以点开头的文件夹，可以按 Cmd+Shift+. 显示。` : "把文件放进这个文件夹的最外层。"}`,
+       `${start}，发一句：「按项目里的 ${ag.file} 开始，先给我实现计划」。`]
+    : [`在终端运行下面的命令${getCode}${ag.cli ? `并启动 ${ag.name}` : ""}。`,
+       ag.cli ? `点「复制简报」，粘贴进 ${ag.name} 发送。` : `${ag.open}，点「复制简报」后粘贴发送。`,
+       `它会先问问题、列计划，你确认后才开始写代码。`];
+  if (ag.id === "trae" && fmt === "prompt") steps.push("想让 Trae 以后每次都记得，可以改选「项目说明文件」。");
+  const baseOpts = [["", "从零开始"], ...repos.map(x => [x.name, `${x.name}（复用度 ${x.fit}）`])];
+  const shown = AGENTS.map((a,i) => [a,i]).filter(([a]) => ccMore || PRIMARY.includes(a.id) || a.id === ag.id);
+  return `<div class="card blk" id="cc-sec" data-noexport>
+    <h3>开发简报<span class="sub">把这份分析交给编程 agent，直接开工</span></h3>
+    <div class="opts">
+      <div class="opt"><span class="label">交给谁</span>
+        <div class="actions"><div class="seg" role="radiogroup" aria-label="交给谁">${shown.map(([a,i]) => `<input type="radio" name="ccagent" id="ccagent-${i}" value="${a.id}" ${a.id===ag.id?"checked":""}><label for="ccagent-${i}">${esc(a.name)}</label>`).join("")}</div>${ccMore ? "" : `<button type="button" class="more-agents" id="cc-more">更多工具：WorkBuddy、Cursor、Trae… ▾</button>`}</div></div>
+      <div class="opt"><span class="label">从哪开始</span>
+        <div class="seg" role="radiogroup" aria-label="从哪开始">${baseOpts.map(([v,l],i) => `<input type="radio" name="ccbase" id="ccbase-${i}" value="${esc(v)}" ${v===base?"checked":""}><label for="ccbase-${i}">${esc(l)}</label>`).join("")}</div>
+        ${repos.length ? "" : `<span class="note">${h.github ? "GitHub 上没有复用度高或中的项目，只能从零开始。" : "先在上面查一下 GitHub 现成项目，就能选一个仓库当起点。"}</span>`}</div>
+      <div class="opt"><span class="label">交给它的方式</span>
+        <div class="seg" role="radiogroup" aria-label="交给它的方式">
+          <input type="radio" name="ccfmt" id="ccfmt-0" value="prompt" ${fmt==="prompt"?"checked":""}><label for="ccfmt-0">一段提示词</label>
+          <input type="radio" name="ccfmt" id="ccfmt-1" value="file" ${fmt==="file"?"checked":""}><label for="ccfmt-1">项目说明文件（${esc(ag.file)}）</label>
+        </div></div>
+    </div>
+    <ol class="vsteps">${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+    <div class="ccbox"><pre class="cc-cmd" id="cc-cmd">${esc(lines.join("\n"))}</pre><button class="btn ghost sm" type="button" id="cc-cmd-copy">复制命令</button></div>
+    <div class="tout">
+      <div class="bar"><b>${fmt === "file" ? esc(agentPath(ag)) : "开发简报"}</b><span class="actions"><button class="btn sm" type="button" id="cc-copy">复制简报</button>${downloads ? `<button class="btn ghost sm" type="button" id="cc-dl">下载 ${fmt === "file" ? esc(ag.file) : ".md"}</button>` : ""}</span></div>
+      <pre class="brief" id="cc-text">${esc(buildHandoff(h, base, fmt, ag))}</pre>
+    </div>
+    <p class="note" style="margin:0">简报由报告内容直接拼成，不花额度；选了 GitHub 仓库或生成过起步方案，会自动并进来。「一段提示词」对任何 agent 都通用；要做好几天的项目，选「项目说明文件」，agent 每次开工都会自己先读。</p>
+  </div>`;
+}
+function renderCC(){
+  const sec = $("#cc-sec"); if (!sec) return;
+  sec.outerHTML = ccSection(current, ccNum);
+  wireCC();
+}
+function wireCC(){
+  const mo = $("#cc-more"); if (mo) mo.onclick = () => { ccMore = true; renderCC(); };
+  document.querySelectorAll('input[name="ccagent"]').forEach(i => i.onchange = () => { ccAgent = i.value; try { localStorage.setItem(KEY + "-agent", ccAgent); } catch(e){} renderCC(); });
+  document.querySelectorAll('input[name="ccbase"]').forEach(i => i.onchange = () => { ccBase = i.value; renderCC(); });
+  document.querySelectorAll('input[name="ccfmt"]').forEach(i => i.onchange = () => { ccFormat = i.value; renderCC(); });
+  const cmdBtn = $("#cc-cmd-copy"); if (cmdBtn) cmdBtn.onclick = async () => { if (!(await copyText($("#cc-cmd").textContent, cmdBtn))) selectText($("#cc-cmd")); };
+  const cp = $("#cc-copy"); if (cp) cp.onclick = async () => { if (!(await copyText($("#cc-text").textContent, cp))) { selectText($("#cc-text")); cp.textContent = "已选中，请手动复制"; } };
+  const dl = $("#cc-dl"); if (dl) dl.onclick = async () => {
+    const name = ccFormat === "file" ? agentOf(ccAgent).file : "开发简报-" + current.idea.replace(/[\\/:*?"<>|\n\r]/g,"").slice(0,16) + ".md";
+    try { await downloads.save({filename: name, data: $("#cc-text").textContent}); } catch(e){}
+  };
+}
+function selectText(el){ try { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch(e){} }
+function wireGh(){
+  const run = $("#gh-run"); if (run) run.onclick = () => runGithub(current);
+  const rr = $("#gh-rerun"); if (rr) rr.onclick = () => runGithub(current);
+  const st = $("#gh-stop"); if (st) st.onclick = () => ghCtl?.abort();
+  document.querySelectorAll("#gh-sec [data-plan]").forEach(b => b.onclick = () => runPlan(current, +b.dataset.plan, false));
+  if (activePlan != null && current.github?.repos?.[activePlan]) showPlan(activePlan);
+}
+function ghPrompt(h, live){
+  const r = h.report || {};
+  const today = new Date().toLocaleDateString("zh-CN",{year:"numeric",month:"long",day:"numeric"});
+  const ctx = `【点子】${h.idea}\n【打算做成】${h.platform}\n【一句话】${r.summary||""}\n【MVP 必须有】${arr(r.mvp?.core).join("；")}\n【检索词】${[...arr(r.keywords?.zh), ...arr(r.keywords?.en)].join("；")}\n【已知竞品】${arr(r.competitors).map(c=>c.name).join("、")}`;
+  return `你是一位熟悉开源生态的技术顾问。用户想用 AI 编程（vibecoding）做下面这个点子，希望先在 GitHub 上找到相似的开源项目，直接 fork 改造或借用部分模块，而不是从 0 开发。今天是 ${today}。
+${live
+  ? `用 web_search 搜 GitHub：第一轮同时发出 3–5 组查询，包括 site:github.com 加英文关键词、中文关键词、"open source" 加产品类别、"awesome" 列表；有必要再搜一轮，然后直接输出 JSON，不要再调用工具。只列你在工具结果里实际看到的仓库；star 数、许可证、创建或更新时间以结果为准，看不到就填 null 或「未知」。`
+  : `你不能联网。只列你确定存在且较知名的仓库，不确定的不要列；stars 填 null（数字会过时），许可证不确定写「未知」。`}
+
+${ctx}
+
+要求：
+1. 列 3–8 个仓库，按对这个点子的可复用程度从高到低排。可以是完整的同类应用、能复用的关键模块（爬虫、评分、某平台 SDK 等），或合适的模板和脚手架。
+2. fit 只能是 "高"、"中"、"低"：高 = fork 后小改就能用，中 = 能借鉴主要模块或架构，低 = 只能参考思路。
+3. reuse 用一句话说具体怎么用（fork 后改哪里、借哪个模块、参考什么）。watchOut 写风险：许可证、长期没人维护、依赖付费 API、技术栈太重等。没有许可证或是 GPL/AGPL 的必须提醒。
+4. verdict 只能是 "有可以直接 fork 的"、"只能借鉴部分模块"、"基本要从头写" 之一。advice 用两三句话说清建议从哪个仓库起步、还缺什么要自己写。
+5. searchTips 给 3–5 个用户自己去 GitHub 搜的英文关键词。
+6. 简体中文（仓库名、技术名保留原文），每条不超过 60 字。
+
+最后只输出一个 JSON 对象，不要任何其他文字：
+{"verdict":"","advice":"","repos":[{"name":"owner/repo","url":"https://github.com/owner/repo","description":"","stars":null,"license":"MIT","lastActive":"2026-05 更新","stack":"TypeScript / React","fit":"高|中|低","reuse":"","watchOut":""}],"searchTips":[""]}`;
+}
+async function runGithub(h){
+  if (!sample || ghBusyId) return;
+  if (ctl){ showErr("等这份报告生成完，再去 GitHub 找。"); return; }
+  const useLive = liveReady();
+  ghBusyId = h.id; ghCtl = new AbortController(); h.githubError = "";
+  visited = []; seenRepos = new Set(); liveIssue = ""; logTarget = "#gh-log";
+  renderGh(h);
+  try {
+    const opts = { signal: ghCtl.signal, modelTier: "default" };
+    let live = useLive;
+    if (live){
+      try { opts.tools = (await buildLiveTools(ghCtl.signal)).tools; }
+      catch(e){ if (ghCtl.signal.aborted) throw {code:"cancelled"}; live = false; liveIssue = e?.message || "联网工具没有准备好"; }
+    }
+    if (!live) opts.cache = false;
+    let data;
+    try { data = await sample.json(ghPrompt(h, live), opts); }
+    catch(e){
+      if (!live || ghCtl?.signal.aborted || NO_RETRY.includes(e?.code)) throw e;
+      liveIssue = liveIssue || ("联网查找出错：" + (ERR[e?.code] || e?.code || "未知错误"));
+      logLine("联网查找失败（" + liveIssue + "），改为列出 Claude 知道的项目");
+      live = false; delete opts.tools; opts.cache = false; visited = []; seenRepos = new Set();
+      data = await sample.json(ghPrompt(h, false), opts);
+    }
+    if (!isObj(data) || !Array.isArray(data.repos)) throw {code:"invalid_json"};
+    data.repos = data.repos.filter(isObj);
+    const seen = new Set();
+    const repos = data.repos.map(x => {
+      const url = ghUrl(x); if (!url) return null;
+      const key = url.toLowerCase(); if (seen.has(key)) return null; seen.add(key);
+      return { ...x, name: url.replace(/^https:\/\/github\.com\//i,""), url, stars: Number.isFinite(Number(x.stars)) && x.stars !== null && x.stars !== "" ? Number(x.stars) : null, verified: live && seenRepos.has(key) };
+    }).filter(Boolean).slice(0,8);
+    const usedLive = live && visited.length > 0;
+    h.github = { verdict: typeof data.verdict === "string" ? data.verdict : "", advice: typeof data.advice === "string" ? data.advice : "", repos, searchTips: strArr(data.searchTips).slice(0,6), live: usedLive, at: new Date().toISOString(), sources: visited.slice(0,20), plans: {} };
+    if (useLive && !usedLive) h.githubError = "联网没能用上（" + (liveIssue || "没有搜到结果") + "），这次只列出 Claude 知道的项目，请自己核实。";
+    activePlan = null;
+    if (!h.example) saveHist(hist);
+  } catch(e){
+    if (e?.code !== "cancelled") h.githubError = ERR[e?.code] || "查找中断了，请再试一次。";
+  } finally {
+    ghBusyId = null; ghCtl = null; logTarget = "#log";
+    renderGh(h);
+  }
+}
+function showPlan(i){
+  const box = $("#gh-plan"); const G = current.github; if (!box || !G) return;
+  const x = G.repos[i]; if (!x) return;
+  const out = G.plans?.[x.name];
+  const err = planErr[current.id + ":" + x.name];
+  const body = out ? md(out) : (planBusy && activePlan === i) ? "生成中…" : err ? `<span class="vwarn">${esc(err)}</span>` : (sample ? "点「生成」，为这个仓库写一份起步方案。" : "需要在 claude.ai 中打开并允许使用 Claude 才能生成。");
+  box.hidden = false;
+  box.innerHTML = `<div class="bar"><b>基于 ${esc(x.name)} 起步</b><span class="actions">${out?`<button class="btn ghost sm" type="button" id="p-copy">复制</button>`:""}${sample?`<button class="btn ghost sm" type="button" id="p-redo">${out?"重新生成":err?"重试":"生成"}</button>`:""}</span></div>
+    <div class="mdout" id="p-out">${body}</div>`;
+  const c = $("#p-copy"); if (c) c.onclick = () => copyText(out, c);
+  const rd = $("#p-redo"); if (rd) rd.onclick = () => runPlan(current, i, true);
+}
+async function runPlan(h, i, force){
+  const G = h.github; if (!G) return; const x = G.repos[i]; if (!x) return;
+  activePlan = i; G.plans = G.plans || {};
+  if ((G.plans[x.name] && !force) || !sample || planBusy){ showPlan(i); return; }
+  delete planErr[h.id + ":" + x.name];
+  planBusy = true; showPlan(i);
+  const rd = $("#p-redo"); if (rd) rd.disabled = true;
+  const prompt = `你是一位务实的全栈工程师，擅长指挥 AI 编程 agent（Claude Code、Cursor 等）改造现有开源项目。用户想基于开源仓库 ${x.name}（${x.url}）来做下面这个点子，而不是从 0 开发。
+
+【仓库信息】${JSON.stringify(x)}
+${reportBrief(h).slice(0,9000)}
+
+请写一份起步方案，用 markdown：
+1. 动手前先确认的 3 件事（许可证是否允许改用、项目还能不能跑起来、需要哪些 API key 或付费服务）。
+2. 拉代码和启动：只写通用步骤（git clone、按 README 安装依赖和配置环境变量），不要编造仓库里不存在的文件名或命令。
+3. 保留什么、删掉什么、要新增什么：对照报告里的「第一版必须有」和差异化切入点列清单。
+4. 一段可以直接发给 AI 编程 agent 的第一轮提示词，放在代码块里，让它先读懂仓库结构，再按清单改造。
+简体中文，具体、可执行，不要空话。`;
+  try {
+    const { text } = await sample(prompt, { cache:false, onText: ({text}) => { if (current===h && activePlan===i){ const o = $("#p-out"); if (o) o.innerHTML = md(text); } } });
+    G.plans[x.name] = text;
+    if (!h.example) saveHist(hist);
+  } catch(e){
+    if (e?.code !== "cancelled") planErr[h.id + ":" + x.name] = (ERR[e?.code] || "生成中断了，请再试一次。");
+  } finally {
+    planBusy = false;
+    if (current === h){ renderGh(h); }
+  }
+}
+
+/* ---------- analysis ---------- */
+const STEPS = [["competitors","梳理竞品"],["complaints","整理口碑"],["gaps","找差异化"],["market","估算市场"],["firstUsers","找第一批用户"],["mvp","规划 MVP"],["blindSpots","查盲点"],["scores","打分下结论"]];
+function renderSteps(text, live){
+  let idx = -1; STEPS.forEach(([k],i) => { if (text.includes(`"${k}"`)) idx = i; });
+  const pre = live ? `<li class="${text.includes('"competitors"')?"done":"on"}">联网检索</li>` : "";
+  $("#steps").innerHTML = pre + STEPS.map(([,l],i) => `<li class="${i<idx?"done":i===idx?"on":""}">${l}</li>`).join("");
+}
+function buildPrompt(idea, platform, market, live, hasFetch){
+  const today = new Date().toLocaleDateString("zh-CN",{year:"numeric",month:"long",day:"numeric"});
+  const liveRule = live
+    ? `你可以用 ${hasFetch ? "web_search 和 read_page 两个工具" : "web_search 工具"}联网核实。请这样做：第一轮同时发出 4–6 次 web_search（中英文都要有：点子关键词、「同类 App/小程序/工具」、可能的竞品名、「吐槽」「差评」「reddit」等）；${hasFetch ? "第二轮最多用 read_page 打开 3 个最有价值的页面（竞品官网、应用商店页、评测或讨论帖）；然后" : "然后"}直接输出 JSON，不要再调用工具。competitors[].sources、praise[].sources、complaints[].sources、firstUsers[].url 只填你在工具结果里实际看到的网址（搜索结果页网址也可以），没有就留空数组或省略，绝不编造网址。联网查到的竞品 confidence 可以标 "high"。`
+    : `你不能联网，只能依据已有知识，你的知识可能不包含最近上线的产品。所有 sources 留空数组，不要填网址。`;
+  return `你是一位严谨、敢说真话的产品分析师，专门帮独立开发者和用 AI 写代码的人（vibecoder）在动手之前做「查新」：判断一个点子市面上有没有竞品、竞品口碑如何、值不值得做。
+今天是 ${today}。${liveRule}
+
+【点子】
+${idea}
+【打算做成】${platform}
+【目标市场】${market}
+
+要求：
+1. 只列确定真实存在的产品，宁可少列也不要编造。不太确定的把 confidence 标成 "low"。不要编造用户数、融资额；价格不确定写「不详」。
+2. 竞品分三类：direct（直接竞品）、indirect（解决同一问题但方式不同）、alternative（用户现在的土办法或通用工具，比如备忘录、Excel、ChatGPT）。目标市场是「国内」时优先列中国产品（App、微信小程序、网站），「海外」优先海外产品，「全球」两边都列。4–8 个，按威胁程度从高到低排。
+3. 好评和吐槽概括真实用户反馈（应用商店评论、小红书、知乎、Reddit、Product Hunt 等）里的常见主题，不要编造具体引语。frequency 只能是 "高频"、"中频"、"偶发"。每条吐槽给出 opportunity（新产品可以怎么做得更好）。
+4. market 是粗略的 TAM/SAM/SOM 估算，用「数十万人」「数千万元」这类量级说法并写清假设，不要假装精确。trend.direction 只能是 "上升"、"平稳"、"下降"、"不确定"。
+5. pivots 给 3 个比原点子更有机会的转向方向，不要打分。firstUsers 给 4–6 个具体的地方：哪个平台的哪个版块、话题、圈子或关键词，以及怎么接触那里的人。
+6. keyAssumption 写出这个点子成立所依赖的最关键的一条假设；blindSpots 写 2–4 个用户自己可能没想到的问题。
+7. scores 是 6 个维度各 0–10 的整数，要诚实，不要一味鼓励：demand 需求真实性，market 市场空间，competition 竞争空间（10=几乎没人做，1=巨头和大量同类），differentiation 差异化空间，feasibility 一个人用 AI 做出来并找到用户的可执行性，monetization 变现路径。页面会按权重 25/10/15/20/20/10 算总分：70 分及以上判「建议开发」，45–69 判「差异化再做」，45 以下判「不建议做」。verdict.headline 用一句可以照着做的话给结论（例如「值得小范围验证，暂不建议直接开发」），verdict.reasons 给 2–3 条最关键的原因，都要和这个结论一致。
+8. validation 帮用户在写代码前先验证需求：whoHasPain 最可能有这个痛点的具体人群，howTheySolveNow 他们现在怎么解决，whereToFind10 去哪能找到 10 个这样的人，firstStep 下一步最该做的一件具体小事（一周内能完成，不是写代码）。
+9. MVP 建议面向一个用 AI 写代码的个人开发者，工作量用「几个晚上 / 几个周末」这种说法。
+10. 全部用简体中文（产品名保留原名）。每条文字简短，不超过 60 个字。keywords 给出去各平台搜索用的检索词，中英文各 2–4 个。
+
+最后只输出一个 JSON 对象，不要任何其他文字。按下面的键顺序输出：
+{"summary":"一句话复述这个点子",
+"competitors":[{"name":"","type":"direct|indirect|alternative","platform":"","region":"国内/海外/全球","pricing":"","oneLiner":"","strengths":[""],"weaknesses":[""],"confidence":"high|medium|low","sources":[]}],
+"praise":[{"theme":"","detail":"","sources":[]}],
+"complaints":[{"theme":"","detail":"","frequency":"高频|中频|偶发","opportunity":"","sources":[]}],
+"borrow":[{"idea":"可借鉴的做法","from":"来自哪个产品"}],
+"gaps":[{"title":"差异化切入点","detail":""}],
+"pivots":[{"title":"","detail":"","why":"为什么更有机会"}],
+"market":{"tam":"","sam":"","som":"","assumptions":[""],"note":""},
+"trend":{"direction":"上升|平稳|下降|不确定","reason":"","signals":[""]},
+"firstUsers":[{"channel":"平台","where":"具体版块/话题/关键词","how":"怎么接触"}],
+"mvp":{"core":[""],"skip":[""],"buildEstimate":"","stack":""},
+"risks":[{"title":"","detail":""}],
+"monetization":[{"model":"","note":""}],
+"keywords":{"zh":[""],"en":[""]},
+"validationSteps":["三步低成本验证"],
+"keyAssumption":"",
+"blindSpots":[{"title":"","detail":""}],
+"saturation":{"level":3,"label":"蓝海/有空间/较拥挤/红海","note":""},
+"scores":{"demand":5,"market":5,"competition":5,"differentiation":5,"feasibility":5,"monetization":5},
+"validation":{"whoHasPain":"","howTheySolveNow":"","whereToFind10":"","firstStep":""},
+"verdict":{"headline":"","reasons":["",""],"reason":"两三句话"}}`;
+}
+const ERR = {
+  not_granted:"你没有允许这个页面使用 Claude，所以无法分析。刷新页面后可以重新授权。",
+  sampling_disabled:"你的账号当前无法使用 Claude。",
+  rate_limited:"请求太频繁或额度已用完，请稍后再试。",
+  session_expired:"登录已过期，请重新登录 claude.ai 后刷新页面。",
+  refused:"Claude 拒绝分析这个内容，换个描述试试。",
+  invalid_json:"返回的结果格式不完整，点「开始查新」再试一次，或换成「快速」模式。",
+  empty_completion:"没有得到结果，请把点子描述得更具体一些再试。",
+  prompt_too_large:"联网读到的内容太多了，请关掉联网或换成「快速」再试。",
+  tools_unavailable:"当前环境不支持联网检索，请取消勾选「联网检索」后再试。"
+};
+function showErr(msg){ const e = $("#err"); e.textContent = msg; e.hidden = !msg; }
+
+/* Codes where retrying without web tools cannot help (or would spend quota for nothing). */
+const NO_RETRY = ["cancelled","not_granted","sampling_disabled","rate_limited","session_expired","refused","not_declared","capability_disabled","capability_removed"];
+async function run(idea, platform, market, depth, live, fresh, replaceId){
+  if (!sample){ showErr("当前环境无法调用 Claude。请在 claude.ai 中打开此页面。"); return; }
+  if (ctl){ showErr("上一个分析还没完成，请等它结束或点「停止」。"); return; }
+  if (ghBusyId){ showErr("GitHub 查找还在进行，请等它结束或点那里的「停止」。"); return; }
+  showErr("");
+  const wantedLive = !!live;
+  const autoGh = $("#gh-auto").checked;
+  const myCtl = ctl = new AbortController();
+  let fellBack = false;
+  visited = []; liveIssue = ""; $("#log").innerHTML = ""; $("#log").hidden = true;
+  $("#go").disabled = true; $("#progress").hidden = false;
+  $("#prog-title").textContent = "正在查新：" + (idea.length > 24 ? idea.slice(0,24) + "…" : idea);
+  $("#count").textContent = live ? `用 ${liveProvider.label} 联网检索中，通常需要 1–3 分钟；首次会请你允许本页使用它` : "思考中，通常需要 20–90 秒";
+  renderSteps("", live);
+  $("#progress").scrollIntoView({block:"nearest"});
+  try {
+    const opts = { signal: ctl.signal, modelTier: depth,
+      onText: ({text}) => { renderSteps(text, live); $("#count").textContent = `已生成 ${text.length} 字`; } };
+    let hasFetch = false;
+    if (live){
+      try { const lt = await buildLiveTools(ctl.signal); opts.tools = lt.tools; hasFetch = lt.hasFetch; }
+      catch(e){
+        if (ctl.signal.aborted) throw {code:"cancelled"};
+        live = false; liveIssue = e?.message || "联网工具没有准备好";
+        logLine("联网没能启动：" + liveIssue + "，改为只依据已有知识分析");
+        renderSteps("", false);
+      }
+    }
+    if (!live && fresh) opts.cache = false;
+    let raw;
+    try { raw = await sample.json(buildPrompt(idea, platform, market, live, hasFetch), opts); }
+    catch(e){
+      if (!live || myCtl.signal.aborted || NO_RETRY.includes(e?.code)) throw e;
+      // Web tools failed mid-analysis: say so, then redo the analysis once without them.
+      liveIssue = liveIssue || ("联网分析出错：" + (ERR[e?.code] || e?.code || "未知错误"));
+      logLine("联网分析失败（" + liveIssue + "），改为只依据已有知识重新分析");
+      live = false; fellBack = true; delete opts.tools; opts.cache = false; visited = [];
+      renderSteps("", false);
+      raw = await sample.json(buildPrompt(idea, platform, market, false, false), opts);
+    }
+    if (myCtl.signal.aborted) throw {code:"cancelled"};
+    if (!isObj(raw) || !Array.isArray(raw.competitors)) throw {code:"invalid_json"};
+    const data = normalizeReport(raw);
+    const seen = new Set(); const src = visited.filter(([,u]) => !seen.has(u) && seen.add(u));
+    const entry = { id: "r" + Date.now(), idea, platform, market, depth, live: live && src.length > 0, createdAt: new Date().toISOString(), report: data, sources: src, chat: [], tools: {} };
+    hist = [entry, ...hist.filter(x => !(replaceId && x.id === replaceId))];
+    saveHist(hist); current = entry; activeKw = 0; activeTool = null; ccBase = null;
+    renderReport(); renderHist();
+    const notes = [];
+    if (wantedLive && !src.length) notes.push(fellBack ? `联网搜索出了问题（${liveIssue}），已自动改为不联网分析，这份报告只依据 Claude 已有知识。` : `联网检索没有成功（${liveIssue || "没有查到页面"}），这份报告只依据 Claude 已有知识。`);
+    if (!scoreInfo(data).ok) notes.push("这次返回的评分数据不完整，报告里不显示分数和结论，建议点「重新分析」。");
+    showErr(notes.join(" "));
+    $("#report").scrollIntoView({block:"start"});
+    if (autoGh) setTimeout(() => runGithub(entry), 0);
+  } catch(e){
+    if (e?.code !== "cancelled") showErr(ERR[e?.code] || "分析中断了，可能是网络或服务波动，请再试一次。");
+  } finally {
+    if (ctl === myCtl){ $("#progress").hidden = true; $("#go").disabled = false; ctl = null; }
+  }
+}
+$("#stop").onclick = () => ctl?.abort();
+$("#form").addEventListener("submit", e => {
+  e.preventDefault();
+  const idea = $("#idea").value.trim();
+  if (idea.length < 6){ showErr("先用一两句话写下你的点子，至少说清楚给谁用、解决什么问题。"); $("#idea").focus(); return; }
+  run(idea, val("platform"), val("market"), val("depth"), $("#live").checked && liveReady(), false);
+});
+$("#live").addEventListener("change", e => { try { localStorage.setItem(KEY+"-live", e.target.checked ? "1" : ""); } catch(_){} });
+try { const s = localStorage.getItem(KEY+"-gh"); if (s !== null) $("#gh-auto").checked = s === "1"; } catch(_){}
+$("#gh-auto").addEventListener("change", e => { try { localStorage.setItem(KEY+"-gh", e.target.checked ? "1" : "0"); } catch(_){} });
+
+/* ---------- follow-up chat ---------- */
+let chatBusy = false;
+async function askSubmit(){
+  const inp = $("#ask-in"); const q = inp.value.trim();
+  if (!q || chatBusy || !sample) return;
+  chatBusy = true; inp.value = ""; $("#ask-btn").disabled = true;
+  const h = current; h.chat = arr(h.chat);
+  h.chat.push({role:"user", content:q}); renderChat();
+  const bubble = document.createElement("div"); bubble.className = "msg a"; bubble.textContent = "思考中…"; $("#msgs").append(bubble);
+  const rules = `你是一位务实、敢说真话的产品分析师。下面是用户的点子和之前生成的查新报告。回答用户的追问：简体中文，简洁直接，可以用列表和 **加粗**。你不能联网，不确定的要说明，不要编造产品或数据。\n\n${reportBrief(h)}`;
+  const turns = [{role:"user", content:rules}, ...h.chat.slice(-12)];
+  try {
+    const { text } = await sample(turns, { cache:false, onText: ({text}) => { bubble.innerHTML = md(text); } });
+    h.chat.push({role:"assistant", content:text});
+    if (!h.example) saveHist(hist);
+    if (current === h) renderChat();
+  } catch(e){
+    bubble.textContent = e?.text ? e.text : (ERR[e?.code] || "回答中断了，请再问一次。");
+    h.chat.pop();
+  } finally { chatBusy = false; const b = $("#ask-btn"); if (b) b.disabled = false; }
+}
+
+/* ---------- boot ---------- */
+function setLiveAvail(ok){
+  $("#live").disabled = !ok; $("#live-box").classList.toggle("off", !ok);
+  if (!ok){ $("#live").checked = false; $("#live-note").textContent = "连上一个搜索连接器即可开启：在 claude.ai 的「设置 → 连接器」里添加 Parallel Search（免费，不用注册账号），然后刷新本页。也支持 Tavily、Exa；在 Claude 桌面版里打开本页则可以直接用内置浏览器。"; }
+  else {
+    $("#live-note").textContent = liveProvider.kind === "browser"
+      ? "将用 Claude 桌面版的内置浏览器搜 Bing、读竞品页面，竞品和吐槽会标出处。耗时 1–3 分钟。"
+      : `将用 ${liveProvider.label} 搜索网页、读竞品页面，竞品和吐槽会标出处。耗时 1–3 分钟，首次会请你允许本页使用它。`;
+    try { const s = localStorage.getItem(KEY+"-live"); $("#live").checked = s === null ? true : s === "1"; } catch(e){ $("#live").checked = true; }
+  }
+}
+hist = hist.map(normalizeEntry).filter(Boolean);
+if (!hist.includes(current)) current = hist[0] || EXAMPLE;
+renderHist(); renderReport(); setLiveAvail(false);
+(async () => {
+  if (!window.claude?.use){ $("#unavail").hidden = false; $("#go").disabled = true; return; }
+  const [s, d, m] = await Promise.all([
+    claude.use("sample").catch(()=>null), claude.use("downloads").catch(()=>null), claude.use("mcp").catch(()=>null)
+  ]);
+  sample = s; downloads = d; mcp = m;
+  if (sample && mcp) { const lim = await sample.limits().catch(()=>null); if (!lim?.tools) mcp = null; }
+  if (mcp) {
+    const lt = await mcp.listTools().catch(()=>null);
+    const names = new Set(arr(lt?.servers).filter(x => x.authStatus !== "needs_reauth").map(x => x.server));
+    const p = PROVIDERS.find(x => names.has(x.server));
+    liveProvider = p ? {kind:"connector", label:p.server, ...p} : names.has(BROWSER) ? {kind:"browser", label:"Claude 桌面版内置浏览器"} : null;
+  }
+  if (!sample){ $("#unavail").hidden = false; $("#go").disabled = true; }
+  setLiveAvail(!!(sample && liveReady()));
+  renderReport();
+})();
+})();
+</script>
+
+</body></html>
